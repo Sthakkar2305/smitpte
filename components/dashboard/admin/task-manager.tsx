@@ -49,6 +49,8 @@ const TASK_TYPES = [
   'Repeat Sentence',
   'Describe Image',
   'Retell Lecture',
+  'summarize groud desicusion',
+  'response to situation',
   'Answer Short Question',
   'Summarize Written Text',
   'Essay',
@@ -64,7 +66,9 @@ const TASK_TYPES = [
   'Multiple Choice, Choose Single Answer (Listening)',
   'Select Missing Word',
   'Highlight Incorrect Words',
-  'Write from Dictation'
+  'Write from Dictation',
+  'section test',
+  'full mock test'
 ];
 
 interface Student {
