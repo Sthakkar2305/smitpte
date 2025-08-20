@@ -1,0 +1,246 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BookOpen, Download, FileText, Search } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/loading-spinner';
+
+interface LearningCenterProps {
+  token: string;
+}
+
+export default function LearningCenter({ token }: LearningCenterProps) {
+  const [materials, setMaterials] = useState([]);
+  const [filteredMaterials, setFilteredMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [languageFilter, setLanguageFilter] = useState('all');
+
+  const fetchMaterials = async () => {
+    try {
+      const response = await fetch('/api/materials', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMaterials(data);
+        setFilteredMaterials(data);
+      }
+    } catch (error) {
+      console.error('Error fetching materials:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterMaterials = () => {
+    let filtered = materials;
+
+    if (searchTerm) {
+      filtered = filtered.filter((material: any) =>
+        material.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        material.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter((material: any) => material.type === typeFilter);
+    }
+
+    if (languageFilter !== 'all') {
+      filtered = filtered.filter((material: any) => 
+        material.language === languageFilter || material.language === 'both'
+      );
+    }
+
+    setFilteredMaterials(filtered);
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'grammar':
+        return <BookOpen className="h-5 w-5" />;
+      case 'template':
+        return <FileText className="h-5 w-5" />;
+      case 'tips':
+        return <Search className="h-5 w-5" />;
+      default:
+        return <FileText className="h-5 w-5" />;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'grammar':
+        return 'bg-blue-100 text-blue-800';
+      case 'template':
+        return 'bg-green-100 text-green-800';
+      case 'tips':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getLanguageColor = (language: string) => {
+    switch (language) {
+      case 'english':
+        return 'bg-orange-100 text-orange-800';
+      case 'gujarati':
+        return 'bg-pink-100 text-pink-800';
+      case 'both':
+        return 'bg-indigo-100 text-indigo-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  useEffect(() => {
+    fetchMaterials();
+  }, []);
+
+  useEffect(() => {
+    filterMaterials();
+  }, [searchTerm, typeFilter, languageFilter, materials]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Learning Center</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LoadingSpinner />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Learning Center</CardTitle>
+          <CardDescription>
+            Access grammar notes, templates, and PTE preparation tips
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <Input
+                placeholder="Search materials..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="grammar">Grammar Notes</SelectItem>
+                <SelectItem value="template">Templates</SelectItem>
+                <SelectItem value="tips">PTE Tips</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={languageFilter} onValueChange={setLanguageFilter}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Filter by language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Languages</SelectItem>
+                <SelectItem value="english">English</SelectItem>
+                <SelectItem value="gujarati">Gujarati</SelectItem>
+                <SelectItem value="both">Both Languages</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredMaterials.map((material: any) => (
+              <Card key={material._id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      {getTypeIcon(material.type)}
+                      <h3 className="font-semibold text-lg">{material.title}</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Badge className={getTypeColor(material.type)}>
+                      {material.type}
+                    </Badge>
+                    <Badge className={getLanguageColor(material.language)}>
+                      {material.language}
+                    </Badge>
+                  </div>
+
+                  {material.description && (
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {material.description}
+                    </p>
+                  )}
+
+                  {material.content && (
+                    <div className="mb-3">
+                      <h4 className="font-medium text-sm mb-1">Content Preview:</h4>
+                      <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded line-clamp-3">
+                        {material.content}
+                      </p>
+                    </div>
+                  )}
+
+                  {material.files && material.files.length > 0 && (
+                    <div className="mb-3">
+                      <h4 className="font-medium text-sm mb-2">Files ({material.files.length}):</h4>
+                      <div className="space-y-1">
+                        {material.files.slice(0, 2).map((file: any, index: number) => (
+                          <div key={index} className="flex items-center justify-between text-xs">
+                            <span className="truncate">{file.originalName}</span>
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={file.path} target="_blank" rel="noopener noreferrer">
+                                <Download className="h-3 w-3" />
+                              </a>
+                            </Button>
+                          </div>
+                        ))}
+                        {material.files.length > 2 && (
+                          <p className="text-xs text-gray-500">
+                            +{material.files.length - 2} more files
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>By {material.uploadedBy?.name}</span>
+                    <span>{new Date(material.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {filteredMaterials.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <BookOpen className="h-12 w-12 mx-auto mb-4" />
+              <p>No learning materials found</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
