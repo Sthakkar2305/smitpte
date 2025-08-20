@@ -1,46 +1,57 @@
 import mongoose from 'mongoose';
 
-const materialSchema = new mongoose.Schema({
+const MaterialSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   type: {
     type: String,
-    enum: ['grammar', 'template', 'tips'],
-    required: true
+    required: true,
+    enum: ['grammar', 'template', 'tips']
   },
   language: {
     type: String,
+    required: true,
     enum: ['english', 'gujarati', 'both'],
     default: 'english'
   },
   description: {
-    type: String
+    type: String,
+    default: ''
+  },
+  content: {
+    type: String,
+    default: ''
   },
   files: [{
-    filename: String,
     originalName: String,
-    path: String,
-    fileType: String,
-    size: Number
+    fileName: String,
+    url: String,
+    size: Number,
+    mimetype: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
-  content: {
-    type: String
-  },
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
   isActive: {
     type: Boolean,
     default: true
   }
+}, {
+  timestamps: true
 });
 
-export default mongoose.models.Material || mongoose.model('Material', materialSchema);
+// Add indexes for better performance
+MaterialSchema.index({ type: 1, isActive: 1 });
+MaterialSchema.index({ language: 1, isActive: 1 });
+MaterialSchema.index({ uploadedBy: 1, isActive: 1 });
+
+export default mongoose.models.Material || mongoose.model('Material', MaterialSchema);

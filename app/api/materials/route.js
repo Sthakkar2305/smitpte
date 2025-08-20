@@ -78,3 +78,117 @@ export async function POST(request) {
     );
   }
 }
+
+export async function PUT(request) {
+  try {
+    await connectDB();
+    
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ message: 'No token provided' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { message: 'Material ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const { title, type, language, description, content, files } = await request.json();
+
+    if (!title || !type) {
+      return NextResponse.json(
+        { message: 'Title and type are required' },
+        { status: 400 }
+      );
+    }
+
+    const material = await Material.findByIdAndUpdate(
+      id,
+      {
+        title,
+        type,
+        language: language || 'english',
+        description,
+        content,
+        files: files || [],
+        updatedAt: new Date()
+      },
+      { new: true }
+    ).populate('uploadedBy', 'name');
+
+    if (!material) {
+      return NextResponse.json(
+        { message: 'Material not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(material);
+
+  } catch (error) {
+    console.error('Update material error:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    await connectDB();
+    
+    const token = getTokenFromHeaders(request);
+    if (!token) {
+      return NextResponse.json({ message: 'No token provided' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { message: 'Material ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Soft delete by setting isActive to false
+    const material = await Material.findByIdAndUpdate(
+      id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!material) {
+      return NextResponse.json(
+        { message: 'Material not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ message: 'Material deleted successfully' });
+
+  } catch (error) {
+    console.error('Delete material error:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

@@ -23,13 +23,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Upload, FileText, Download } from 'lucide-react';
+import { Plus, Upload, FileText, Download, Edit, Trash2 } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
-// --- Add this interface ---
 interface UploadedFile {
   originalName: string;
-  [key: string]: any; // Add other properties as needed
+  url: string;
+  [key: string]: any;
+}
+
+interface Material {
+  _id: string;
+  title: string;
+  type: string;
+  language: string;
+  description: string;
+  content: string;
+  files: UploadedFile[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface MaterialUploadProps {
@@ -37,11 +50,13 @@ interface MaterialUploadProps {
 }
 
 export default function MaterialUpload({ token }: MaterialUploadProps) {
-  const [materials, setMaterials] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     type: 'grammar',
@@ -99,8 +114,11 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/materials', {
-        method: 'POST',
+      const url = editingMaterial ? `/api/materials/${editingMaterial._id}` : '/api/materials';
+      const method = editingMaterial ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -110,8 +128,10 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           files: uploadedFiles
         }),
       });
+      
       if (response.ok) {
         setIsDialogOpen(false);
+        setIsEditDialogOpen(false);
         setFormData({
           title: '',
           type: 'grammar',
@@ -120,17 +140,52 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           content: ''
         });
         setUploadedFiles([]);
+        setEditingMaterial(null);
         fetchMaterials();
       }
     } catch (error) {
-      console.error('Error creating material:', error);
+      console.error('Error creating/updating material:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleEdit = (material: Material) => {
+    setEditingMaterial(material);
+    setFormData({
+      title: material.title,
+      type: material.type,
+      language: material.language,
+      description: material.description || '',
+      content: material.content || ''
+    });
+    setUploadedFiles(material.files || []);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/materials/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        fetchMaterials();
+      }
+    } catch (error) {
+      console.error('Error deleting material:', error);
+    }
+  };
+
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const downloadFile = (file: UploadedFile) => {
+    window.open(file.url, '_blank');
   };
 
   useEffect(() => {
@@ -264,6 +319,128 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                 </form>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Learning Material</DialogTitle>
+                  <DialogDescription>
+                    Update the learning material
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="edit-title">Title</Label>
+                    <Input
+                      id="edit-title"
+                      value={formData.title}
+                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-type">Material Type</Label>
+                    <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select material type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="grammar">Grammar Notes</SelectItem>
+                        <SelectItem value="template">Templates</SelectItem>
+                        <SelectItem value="tips">PTE Tips</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-language">Language</Label>
+                    <Select value={formData.language} onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English</SelectItem>
+                        <SelectItem value="gujarati">Gujarati</SelectItem>
+                        <SelectItem value="both">Both Languages</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea
+                      id="edit-description"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-content">Text Content (Optional)</Label>
+                    <Textarea
+                      id="edit-content"
+                      value={formData.content}
+                      onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                      className="mt-1"
+                      rows={4}
+                      placeholder="Add text content here..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-files">Upload Files</Label>
+                    <div className="mt-2">
+                      <Input
+                        id="edit-files"
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp3,.wav"
+                        onChange={handleFileUpload}
+                        className="mb-2"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Supported formats: PDF, DOC, DOCX, JPG, PNG, MP3, WAV
+                      </p>
+                    </div>
+
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-3 space-y-2 max-h-40 overflow-auto">
+                        <Label className="text-sm font-medium">Uploaded Files:</Label>
+                        {uploadedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                            <div className="flex items-center min-w-0">
+                              <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span className="text-sm truncate">{file.originalName}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => downloadFile(file)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeFile(index)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? <LoadingSpinner size="sm" /> : 'Update Material'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
@@ -278,11 +455,11 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                   <TableHead>Language</TableHead>
                   <TableHead className="text-right">Files</TableHead>
                   <TableHead>Uploaded</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {materials.map((material: any) => (
+                {materials.map((material) => (
                   <TableRow key={material._id}>
                     <TableCell className="font-medium max-w-xs truncate">{material.title}</TableCell>
                     <TableCell>
@@ -297,11 +474,39 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                     <TableCell>
                       {new Date(material.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEdit(material)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the material.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(material._id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

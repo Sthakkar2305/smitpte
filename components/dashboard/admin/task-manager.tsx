@@ -25,11 +25,41 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Calendar, Users, FileText } from 'lucide-react';
+import { Plus, Calendar, Users, FileText, Edit, Trash2 } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface TaskManagerProps {
   token: string;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  type: string;
+  description: string;
+  quantity: number;
+  deadline: string | null;
+  assignedTo: any[];
+  createdAt: string;
+  createdBy: any;
+}
+
+interface Student {
+  _id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
 }
 
 const TASK_TYPES = [
@@ -62,11 +92,13 @@ const TASK_TYPES = [
 ];
 
 export default function TaskManager({ token }: TaskManagerProps) {
-  const [tasks, setTasks] = useState([]);
-  const [students, setStudents] = useState([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -105,7 +137,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
       });
       if (response.ok) {
         const data = await response.json();
-        setStudents(data.filter((user: any) => user.isActive));
+        setStudents(data.filter((user: Student) => user.isActive));
       }
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -117,8 +149,11 @@ export default function TaskManager({ token }: TaskManagerProps) {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
+      const url = editingTask ? `/api/tasks/${editingTask._id}` : '/api/tasks';
+      const method = editingTask ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -128,6 +163,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
 
       if (response.ok) {
         setIsDialogOpen(false);
+        setIsEditDialogOpen(false);
         setFormData({
           title: '',
           type: '',
@@ -137,13 +173,45 @@ export default function TaskManager({ token }: TaskManagerProps) {
           assignedTo: [],
           assignToAll: false
         });
+        setEditingTask(null);
         fetchTasks();
       }
     } catch (error) {
-      console.error('Error creating task:', error);
+      console.error('Error creating/updating task:', error);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        fetchTasks();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setFormData({
+      title: task.title,
+      type: task.type,
+      description: task.description,
+      quantity: task.quantity,
+      deadline: task.deadline || '',
+      assignedTo: task.assignedTo.map((student: any) => student._id),
+      assignToAll: task.assignedTo.length === 0
+    });
+    setIsEditDialogOpen(true);
   };
 
   const handleStudentSelection = (studentId: string, checked: boolean) => {
@@ -173,6 +241,113 @@ export default function TaskManager({ token }: TaskManagerProps) {
     fetchStudents();
   }, []);
 
+  const renderTaskForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="title">Task Title</Label>
+        <Input
+          id="title"
+          value={formData.title}
+          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          required
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="type">Task Type</Label>
+        <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select task type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TASK_TYPES.map(type => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          required
+          className="mt-1"
+          rows={3}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="quantity">Quantity</Label>
+          <Input
+            id="quantity"
+            type="number"
+            min="1"
+            value={formData.quantity}
+            onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) }))}
+            required
+            className="mt-1"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="deadline">Deadline (Optional)</Label>
+          <Input
+            id="deadline"
+            type="date"
+            value={formData.deadline}
+            onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+            className="mt-1"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label>Assignment</Label>
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="assignToAll"
+              checked={formData.assignToAll}
+              onCheckedChange={handleAssignToAll}
+            />
+            <Label htmlFor="assignToAll" className="text-sm">Assign to all students</Label>
+          </div>
+          
+          {!formData.assignToAll && (
+            <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+              <Label className="text-sm font-medium">Select Students:</Label>
+              <div className="mt-2 space-y-2">
+                {students.map((student) => (
+                  <div key={student._id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={student._id}
+                      checked={formData.assignedTo.includes(student._id)}
+                      onCheckedChange={(checked) => handleStudentSelection(student._id, checked as boolean)}
+                    />
+                    <Label htmlFor={student._id} className="text-sm truncate">
+                      {student.name} ({student.email})
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? <LoadingSpinner size="sm" /> : (editingTask ? 'Update Task' : 'Create Task')}
+      </Button>
+    </form>
+  );
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="w-full overflow-hidden">
@@ -198,110 +373,20 @@ export default function TaskManager({ token }: TaskManagerProps) {
                     Add a new task for students to complete
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="title">Task Title</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
+                {renderTaskForm()}
+              </DialogContent>
+            </Dialog>
 
-                  <div>
-                    <Label htmlFor="type">Task Type</Label>
-                    <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select task type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TASK_TYPES.map(type => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      required
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        value={formData.quantity}
-                        onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) }))}
-                        required
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="deadline">Deadline (Optional)</Label>
-                      <Input
-                        id="deadline"
-                        type="date"
-                        value={formData.deadline}
-                        onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Assignment</Label>
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="assignToAll"
-                          checked={formData.assignToAll}
-                          onCheckedChange={handleAssignToAll}
-                        />
-                        <Label htmlFor="assignToAll" className="text-sm">Assign to all students</Label>
-                      </div>
-                      
-                      {!formData.assignToAll && (
-                        <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                          <Label className="text-sm font-medium">Select Students:</Label>
-                          <div className="mt-2 space-y-2">
-                            {students.map((student: any) => (
-                              <div key={student._id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={student._id}
-                                  checked={formData.assignedTo.includes(student._id)}
-                                  onCheckedChange={(checked) => handleStudentSelection(student._id, checked as boolean)}
-                                />
-                                <Label htmlFor={student._id} className="text-sm truncate">
-                                  {student.name} ({student.email})
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? <LoadingSpinner size="sm" /> : 'Create Task'}
-                  </Button>
-                </form>
+            {/* Edit Task Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Task</DialogTitle>
+                  <DialogDescription>
+                    Update task details
+                  </DialogDescription>
+                </DialogHeader>
+                {renderTaskForm()}
               </DialogContent>
             </Dialog>
           </div>
@@ -324,10 +409,11 @@ export default function TaskManager({ token }: TaskManagerProps) {
                       <TableHead className="w-[15%]">Assigned To</TableHead>
                       <TableHead className="w-[15%]">Deadline</TableHead>
                       <TableHead className="w-[15%]">Created</TableHead>
+                      <TableHead className="w-[10%]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tasks.map((task: any) => (
+                    {tasks.map((task) => (
                       <TableRow key={task._id}>
                         <TableCell className="font-medium truncate max-w-[200px]">{task.title}</TableCell>
                         <TableCell>
@@ -355,6 +441,41 @@ export default function TaskManager({ token }: TaskManagerProps) {
                         <TableCell>
                           {new Date(task.createdAt).toLocaleDateString()}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditTask(task)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the task.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteTask(task._id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -363,7 +484,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
-                {tasks.map((task: any) => (
+                {tasks.map((task) => (
                   <Card key={task._id} className="w-full">
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start gap-2">
@@ -396,6 +517,43 @@ export default function TaskManager({ token }: TaskManagerProps) {
                         
                         <div className="text-sm text-muted-foreground">
                           Created: {new Date(task.createdAt).toLocaleDateString()}
+                        </div>
+                        
+                        <div className="flex space-x-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditTask(task)}
+                            className="flex-1"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm" className="flex-1">
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the task.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteTask(task._id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     </CardContent>
