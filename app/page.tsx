@@ -13,46 +13,65 @@ import TaskList from '@/components/dashboard/student/task-list';
 import LearningCenter from '@/components/dashboard/student/learning-center';
 import ProgressReport from '@/components/dashboard/student/progress-report';
 
+// Type for user
+type User = {
+  name: string;
+  role: 'admin' | 'student' | 'teacher';
+  email?: string;
+};
+
+// Type for dashboard stats
+type DashboardStats = {
+  totalStudents?: number;
+  activeTasks?: number;
+  pendingReviews?: number;
+  totalSubmissions?: number;
+  approvedSubmissions?: number;
+  rejectedSubmissions?: number;
+  assignedTasks?: number;
+  completedTasks?: number;
+  pendingTasks?: number;
+};
+
 export default function Home() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
-  const [dashboardStats, setDashboardStats] = useState(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
 
+  // Check for stored auth data & seed admin once
   useEffect(() => {
-    // Check for stored auth data
     const storedToken = localStorage.getItem('pte_token');
     const storedUser = localStorage.getItem('pte_user');
-    
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
     }
-
-    // Create default admin if needed (only run once)
     const hasSeeded = localStorage.getItem('admin_seeded');
     if (!hasSeeded) {
-      fetch('/api/auth/seed-admin', {
-        method: 'POST',
-      }).then(() => {
-        localStorage.setItem('admin_seeded', 'true');
-      }).catch(console.error);
+      fetch('/api/auth/seed-admin', { method: 'POST' })
+        .then(() => {
+          localStorage.setItem('admin_seeded', 'true');
+        })
+        .catch(console.error);
     }
   }, []);
 
+  // Fetch stats whenever login changes
   useEffect(() => {
     if (user && token) {
       fetchDashboardStats();
     }
   }, [user, token]);
 
+  // Fetch dashboard stats
   const fetchDashboardStats = async () => {
+    setDashboardLoading(true);
     try {
       const response = await fetch('/api/dashboard/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -60,16 +79,21 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      setDashboardStats(null);
+    } finally {
+      setDashboardLoading(false);
     }
   };
 
-  const handleAuth = (authToken: string, userData: any) => {
+  // Authentication handler
+  const handleAuth = (authToken: string, userData: User) => {
     setToken(authToken);
     setUser(userData);
     localStorage.setItem('pte_token', authToken);
     localStorage.setItem('pte_user', JSON.stringify(userData));
   };
 
+  // Logout handler
   const handleLogout = () => {
     setToken('');
     setUser(null);
@@ -79,9 +103,75 @@ export default function Home() {
     localStorage.removeItem('pte_user');
   };
 
+  // Dashboard overview cards for admin/student
+  const renderDashboardCards = () => {
+    if (dashboardLoading || !dashboardStats) {
+      return (
+        <div className="flex items-center justify-center h-32 text-gray-500 text-lg">
+          Loading dashboard...
+        </div>
+      );
+    }
+    if (user?.role === 'admin') {
+      // Admin dashboard (same as old working code)
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Total Students</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.totalStudents || 0}</p>
+            </div>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Active Tasks</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.activeTasks || 0}</p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Pending Reviews</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.pendingReviews || 0}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Total Submissions</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.totalSubmissions || 0}</p>
+            </div>
+            <div className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Approved</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.approvedSubmissions || 0}</p>
+            </div>
+            <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Rejected</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.rejectedSubmissions || 0}</p>
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      // Student dashboard (same as old code)
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Assigned Tasks</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.assignedTasks || 0}</p>
+            </div>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Completed</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.completedTasks || 0}</p>
+            </div>
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+              <h3 className="text-lg font-semibold">Pending</h3>
+              <p className="text-3xl font-bold mt-2">{dashboardStats.pendingTasks || 0}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  };
+
+  // Main view renderer for admin/student
   const renderContent = () => {
     if (!user) return null;
-
     if (user.role === 'admin') {
       switch (activeView) {
         case 'students':
@@ -96,39 +186,7 @@ export default function Home() {
           return <MaterialUpload token={token} />;
         case 'dashboard':
         default:
-          return (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Total Students</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.totalStudents || 0}</p>
-                </div>
-                <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Active Tasks</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.activeTasks || 0}</p>
-                </div>
-                <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Pending Reviews</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.pendingReviews || 0}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Total Submissions</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.totalSubmissions || 0}</p>
-                </div>
-                <div className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Approved</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.approvedSubmissions || 0}</p>
-                </div>
-                <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Rejected</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.rejectedSubmissions || 0}</p>
-                </div>
-              </div>
-            </div>
-          );
+          return renderDashboardCards();
       }
     } else {
       switch (activeView) {
@@ -140,28 +198,12 @@ export default function Home() {
           return <ProgressReport token={token} />;
         case 'dashboard':
         default:
-          return (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Assigned Tasks</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.assignedTasks || 0}</p>
-                </div>
-                <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Completed</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.completedTasks || 0}</p>
-                </div>
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
-                  <h3 className="text-lg font-semibold">Pending</h3>
-                  <p className="text-3xl font-bold mt-2">{dashboardStats?.pendingTasks || 0}</p>
-                </div>
-              </div>
-            </div>
-          );
+          return renderDashboardCards();
       }
     }
   };
 
+  // Auth screens
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -170,32 +212,25 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">PTE Preparation</h1>
             <p className="text-gray-600">Your gateway to PTE success</p>
           </div>
-          
           {isLogin ? (
-            <LoginForm 
-              onLogin={handleAuth}
-              onToggleMode={() => setIsLogin(false)}
-            />
+            <LoginForm onLogin={handleAuth} onToggleMode={() => setIsLogin(false)} />
           ) : (
-            <RegisterForm 
-              onRegister={handleAuth}
-              onToggleMode={() => setIsLogin(true)}
-            />
+            <RegisterForm onRegister={handleAuth} onToggleMode={() => setIsLogin(true)} />
           )}
         </div>
       </div>
     );
   }
 
+  // Main app layout
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar 
+      <Sidebar
         user={user}
         activeView={activeView}
         onViewChange={setActiveView}
         onLogout={handleLogout}
       />
-      
       <main className="flex-1 overflow-auto">
         <div className="p-8">
           <div className="mb-6">
@@ -203,10 +238,11 @@ export default function Home() {
               Welcome back, {user.name}!
             </h1>
             <p className="text-gray-600">
-              {user.role === 'admin' ? 'Manage your students and track their progress' : 'Continue your PTE preparation journey'}
+              {user.role === 'admin'
+                ? 'Manage your students and track their progress'
+                : 'Continue your PTE preparation journey'}
             </p>
           </div>
-          
           {renderContent()}
         </div>
       </main>

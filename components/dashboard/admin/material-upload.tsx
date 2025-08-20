@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,16 +26,22 @@ import {
 import { Plus, Upload, FileText, Download } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
+// --- Add this interface ---
+interface UploadedFile {
+  originalName: string;
+  [key: string]: any; // Add other properties as needed
+}
+
 interface MaterialUploadProps {
   token: string;
 }
 
 export default function MaterialUpload({ token }: MaterialUploadProps) {
-  const [materials, setMaterials] = useState([]);
+  const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     type: 'grammar',
@@ -66,11 +71,9 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     const uploadPromises = Array.from(files).map(async (file) => {
       const formData = new FormData();
       formData.append('file', file);
-
       try {
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -79,7 +82,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           },
           body: formData,
         });
-
         if (response.ok) {
           return await response.json();
         }
@@ -88,16 +90,14 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       }
       return null;
     });
-
     const results = await Promise.all(uploadPromises);
-    const successfulUploads = results.filter(result => result !== null);
+    const successfulUploads: UploadedFile[] = results.filter((result): result is UploadedFile => result !== null);
     setUploadedFiles(prev => [...prev, ...successfulUploads]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
     try {
       const response = await fetch('/api/materials', {
         method: 'POST',
@@ -110,7 +110,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           files: uploadedFiles
         }),
       });
-
       if (response.ok) {
         setIsDialogOpen(false);
         setFormData({
@@ -174,7 +173,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                       className="mt-1"
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="type">Material Type</Label>
                     <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
@@ -188,7 +186,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div>
                     <Label htmlFor="language">Language</Label>
                     <Select value={formData.language} onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}>
@@ -202,7 +199,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div>
                     <Label htmlFor="description">Description</Label>
                     <Textarea
@@ -213,7 +209,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                       rows={3}
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="content">Text Content (Optional)</Label>
                     <Textarea
@@ -225,7 +220,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                       placeholder="Add text content here..."
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="files">Upload Files</Label>
                     <div className="mt-2">
@@ -245,7 +239,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                     {uploadedFiles.length > 0 && (
                       <div className="mt-3 space-y-2">
                         <Label className="text-sm font-medium">Uploaded Files:</Label>
-                        {uploadedFiles.map((file: any, index) => (
+                        {uploadedFiles.map((file, index) => (
                           <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                             <div className="flex items-center">
                               <FileText className="h-4 w-4 mr-2" />
@@ -264,7 +258,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                       </div>
                     )}
                   </div>
-
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? <LoadingSpinner size="sm" /> : 'Upload Material'}
                   </Button>

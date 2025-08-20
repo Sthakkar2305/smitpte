@@ -18,17 +18,48 @@ import {
 import { Calendar, FileText, Clock, Upload } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
+// Types for your data
+interface FileItem {
+  originalName: string;
+  // other file properties may come here
+}
+
+interface Feedback {
+  text?: string;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  type: string;
+  quantity: number;
+  deadline?: string;
+  description?: string;
+}
+
+type SubmissionStatus = 'approved' | 'rejected' | 'pending' | null;
+
+interface Submission {
+  _id: string;
+  task?: Task;
+  status?: SubmissionStatus;
+  feedback?: Feedback;
+  notes?: string;
+  files?: FileItem[];
+}
+
+// Props type
 interface TaskListProps {
   token: string;
 }
 
 export default function TaskList({ token }: TaskListProps) {
-  const [tasks, setTasks] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [submissionNotes, setSubmissionNotes] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -36,7 +67,7 @@ export default function TaskList({ token }: TaskListProps) {
     try {
       const response = await fetch('/api/tasks', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -52,7 +83,7 @@ export default function TaskList({ token }: TaskListProps) {
     try {
       const response = await fetch('/api/submissions', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -79,11 +110,10 @@ export default function TaskList({ token }: TaskListProps) {
         const response = await fetch('/api/upload', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         });
-
         if (response.ok) {
           return await response.json();
         }
@@ -94,25 +124,26 @@ export default function TaskList({ token }: TaskListProps) {
     });
 
     const results = await Promise.all(uploadPromises);
-    const successfulUploads = results.filter(result => result !== null);
+    // Filter out null results and assert type
+    const successfulUploads = results.filter((result): result is FileItem => result !== null);
     setUploadedFiles(prev => [...prev, ...successfulUploads]);
     setIsUploading(false);
   };
 
   const handleSubmission = async (taskId: string) => {
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch('/api/submissions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           taskId,
           notes: submissionNotes,
-          files: uploadedFiles
+          files: uploadedFiles,
         }),
       });
 
@@ -129,16 +160,16 @@ export default function TaskList({ token }: TaskListProps) {
     }
   };
 
-  const getSubmissionStatus = (taskId: string) => {
-    const submission = submissions.find((s: any) => s.task?._id === taskId);
-    return submission ? submission.status : null;
+  const getSubmissionStatus = (taskId: string): SubmissionStatus => {
+    const submission = submissions.find(s => s.task?._id === taskId);
+    return submission?.status || null;
   };
 
-  const getSubmission = (taskId: string) => {
-    return submissions.find((s: any) => s.task?._id === taskId);
+  const getSubmission = (taskId: string): Submission | undefined => {
+    return submissions.find(s => s.task?._id === taskId);
   };
 
-  const getSubmissionBadgeColor = (status: string) => {
+  const getSubmissionBadgeColor = (status: SubmissionStatus) => {
     switch (status) {
       case 'approved':
         return 'bg-green-100 text-green-800';
@@ -151,7 +182,7 @@ export default function TaskList({ token }: TaskListProps) {
     }
   };
 
-  const isTaskOverdue = (deadline: string) => {
+  const isTaskOverdue = (deadline?: string) => {
     if (!deadline) return false;
     return new Date(deadline) < new Date();
   };
@@ -189,7 +220,7 @@ export default function TaskList({ token }: TaskListProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            {tasks.map((task: any) => {
+            {tasks.map((task) => {
               const submissionStatus = getSubmissionStatus(task._id);
               const submission = getSubmission(task._id);
               const overdue = isTaskOverdue(task.deadline);
@@ -214,7 +245,7 @@ export default function TaskList({ token }: TaskListProps) {
                           )}
                         </div>
                         <p className="mt-2 text-gray-700">{task.description}</p>
-                        
+
                         {submission?.feedback?.text && (
                           <div className="mt-3 p-3 bg-blue-50 rounded-lg">
                             <h4 className="font-medium text-sm text-blue-900">Teacher Feedback:</h4>
@@ -222,20 +253,24 @@ export default function TaskList({ token }: TaskListProps) {
                           </div>
                         )}
                       </div>
+
                       <div className="flex flex-col items-end space-y-2">
                         {submissionStatus && (
                           <Badge className={getSubmissionBadgeColor(submissionStatus)}>
                             {submissionStatus}
                           </Badge>
                         )}
+
                         {!submissionStatus && (
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button onClick={() => {
-                                setSelectedTask(task);
-                                setSubmissionNotes('');
-                                setUploadedFiles([]);
-                              }}>
+                              <Button
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setSubmissionNotes('');
+                                  setUploadedFiles([]);
+                                }}
+                              >
                                 Submit Work
                               </Button>
                             </DialogTrigger>
@@ -273,7 +308,7 @@ export default function TaskList({ token }: TaskListProps) {
                                   <div>
                                     <Label className="text-sm font-medium">Uploaded Files:</Label>
                                     <div className="mt-2 space-y-2">
-                                      {uploadedFiles.map((file: any, index) => (
+                                      {uploadedFiles.map((file, index) => (
                                         <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                           <div className="flex items-center">
                                             <FileText className="h-4 w-4 mr-2" />
@@ -305,12 +340,14 @@ export default function TaskList({ token }: TaskListProps) {
                                   />
                                 </div>
 
-                                <Button 
+                                <Button
                                   onClick={() => selectedTask && handleSubmission(selectedTask._id)}
                                   className="w-full"
                                   disabled={isSubmitting || uploadedFiles.length === 0}
                                 >
-                                  {isSubmitting ? <LoadingSpinner size="sm" /> : (
+                                  {isSubmitting ? (
+                                    <LoadingSpinner size="sm" />
+                                  ) : (
                                     <>
                                       <Upload className="h-4 w-4 mr-2" />
                                       Submit Task

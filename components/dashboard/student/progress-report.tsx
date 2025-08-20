@@ -8,6 +8,23 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, CheckCircle, Clock, XCircle, Target } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
+// ****** Typed interfaces ******
+type Status = 'approved' | 'pending' | 'rejected' | 'Unknown';
+interface SubmissionTask {
+  type?: string;
+}
+interface Submission {
+  task?: SubmissionTask;
+  status: Status;
+  submittedAt: string;
+}
+interface Stats {
+  assignedTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  rejectedTasks: number;
+}
+
 interface ProgressReportProps {
   token: string;
 }
@@ -15,10 +32,11 @@ interface ProgressReportProps {
 const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6B7280'];
 
 export default function ProgressReport({ token }: ProgressReportProps) {
-  const [stats, setStats] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch stats
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/dashboard/stats', {
@@ -35,6 +53,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     }
   };
 
+  // Fetch submissions
   const fetchSubmissions = async () => {
     try {
       const response = await fetch('/api/submissions', {
@@ -53,29 +72,38 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     }
   };
 
+  // Calculate stats by task type
   const getTaskTypeStats = () => {
-    const taskTypes = {};
-    submissions.forEach((submission: any) => {
+    // Use safer typing: Record<string, {approved: number; pending: number; rejected: number}>
+    const taskTypes: Record<string, { approved: number; pending: number; rejected: number }> = {};
+    submissions.forEach((submission) => {
       const type = submission.task?.type || 'Unknown';
       if (!taskTypes[type]) {
         taskTypes[type] = { approved: 0, pending: 0, rejected: 0 };
       }
-      taskTypes[type][submission.status]++;
+      if (
+        submission.status === 'approved' ||
+        submission.status === 'pending' ||
+        submission.status === 'rejected'
+      ) {
+        taskTypes[type][submission.status]++;
+      }
     });
-
-    return Object.entries(taskTypes).map(([type, counts]: [string, any]) => ({
+    return Object.entries(taskTypes).map(([type, counts]) => ({
       type,
       approved: counts.approved,
       pending: counts.pending,
       rejected: counts.rejected,
-      total: counts.approved + counts.pending + counts.rejected
+      total: counts.approved + counts.pending + counts.rejected,
     }));
   };
 
+  // Weekly progress
   const getWeeklyProgress = () => {
-    const weeks = {};
+    // Record week name -> stats
+    const weeks: Record<string, { submitted: number; approved: number }> = {};
     const now = new Date();
-    
+
     // Initialize last 4 weeks
     for (let i = 3; i >= 0; i--) {
       const weekStart = new Date(now);
@@ -84,10 +112,9 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       weeks[weekKey] = { submitted: 0, approved: 0 };
     }
 
-    submissions.forEach((submission: any) => {
+    submissions.forEach((submission) => {
       const submissionDate = new Date(submission.submittedAt);
       const daysDiff = Math.floor((now.getTime() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
-      
       if (daysDiff <= 28) {
         const weekIndex = Math.floor(daysDiff / 7);
         const weekKey = `Week ${4 - weekIndex}`;
@@ -100,19 +127,21 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       }
     });
 
-    return Object.entries(weeks).map(([week, data]: [string, any]) => ({
+    return Object.entries(weeks).map(([week, data]) => ({
       week,
       submitted: data.submitted,
-      approved: data.approved
+      approved: data.approved,
     }));
   };
 
+  // Overall progress
   const getOverallProgress = () => {
     if (!stats) return 0;
     const total = stats.completedTasks + stats.pendingTasks + stats.rejectedTasks;
     return total > 0 ? Math.round((stats.completedTasks / total) * 100) : 0;
   };
 
+  // Pie chart data
   const getPieChartData = () => {
     if (!stats) return [];
     return [
@@ -125,6 +154,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
   useEffect(() => {
     fetchStats();
     fetchSubmissions();
+    // eslint-disable-next-line
   }, []);
 
   if (loading) {
@@ -160,7 +190,6 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -172,7 +201,6 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -184,7 +212,6 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">

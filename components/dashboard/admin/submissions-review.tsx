@@ -24,14 +24,41 @@ import {
 import { Eye, CheckCircle, XCircle, FileText } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
+// ---- Define Types ----
+interface SubmissionFile {
+  originalName: string;
+  path: string;
+  [key: string]: any;
+}
+interface SubmissionFeedback {
+  text?: string;
+}
+interface SubmissionTask {
+  title?: string;
+  description?: string;
+  type?: string;
+}
+interface SubmissionStudent {
+  name?: string;
+}
+interface Submission {
+  _id: string;
+  student?: SubmissionStudent;
+  task?: SubmissionTask;
+  notes?: string;
+  files?: SubmissionFile[];
+  status: string;
+  submittedAt: string;
+  feedback?: SubmissionFeedback;
+}
 interface SubmissionsReviewProps {
   token: string;
 }
 
 export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
-  const [submissions, setSubmissions] = useState([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [feedback, setFeedback] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -67,7 +94,6 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
           feedbackText
         }),
       });
-
       if (response.ok) {
         fetchSubmissions();
         setSelectedSubmission(null);
@@ -95,6 +121,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
 
   useEffect(() => {
     fetchSubmissions();
+    // eslint-disable-next-line
   }, []);
 
   return (
@@ -122,7 +149,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.map((submission: any) => (
+                {submissions.map((submission) => (
                   <TableRow key={submission._id}>
                     <TableCell className="font-medium">
                       {submission.student?.name || 'Unknown Student'}
@@ -166,7 +193,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                               <h4 className="font-medium mb-2">Task Details:</h4>
                               <p className="text-sm text-gray-600">{submission.task?.description}</p>
                             </div>
-                            
+
                             {submission.notes && (
                               <div>
                                 <h4 className="font-medium mb-2">Student Notes:</h4>
@@ -178,7 +205,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                               <div>
                                 <h4 className="font-medium mb-2">Submitted Files:</h4>
                                 <div className="space-y-2">
-                                  {submission.files.map((file: any, index: number) => (
+                                  {submission.files.map((file, index) => (
                                     <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                                       <div className="flex items-center">
                                         <FileText className="h-4 w-4 mr-2" />
