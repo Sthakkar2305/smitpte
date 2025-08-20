@@ -1,41 +1,68 @@
-import { NextResponse, NextRequest } from 'next/server';
+// app/api/upload/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { verifyToken, getTokenFromHeaders } from '@/utils/auth';
+import path from 'path';
+import { verifyToken } from '@/utils/auth';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
-      return NextResponse.json({ message: 'No file provided' }, { status: 400 });
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadsDir, { recursive: true });
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
 
-    // Generate unique filename
-    const timestamp = Date.now();
-    const filename = `${timestamp}-${file.name}`;
-    const filepath = join(uploadsDir, filename);
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
 
-    // Convert file to buffer and save
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filepath, new Uint8Array(buffer));
+    
+    // Convert ArrayBuffer to Uint8Array
+    const buffer = new Uint8Array(bytes);
+    
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    try {
+      await mkdir(uploadsDir, { recursive: true });
+    } catch (err) {
+      console.error('Error creating uploads directory:', err);
+    }
 
-    // Return file info
+    // Create a unique filename with timestamp
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop() || '';
+    const baseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+    const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9]/g, '_');
+    const uniqueFilename = `${sanitizedBaseName}_${timestamp}.${fileExtension}`;
+    
+    const filePath = path.join(uploadsDir, uniqueFilename);
+    
+    // Write file
+    await writeFile(filePath, buffer);
+
+    // Return the file information with the correct filename
     return NextResponse.json({
-      filename,
       originalName: file.name,
-      path: `/uploads/${filename}`,
-      fileType: file.type,
+      filename: uniqueFilename, // This should not be undefined
+      url: `/api/download/${uniqueFilename}?originalName=${encodeURIComponent(file.name)}`,
       size: file.size,
+      type: file.type
     });
+
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ message: 'Upload failed' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

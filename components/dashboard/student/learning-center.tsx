@@ -1,40 +1,80 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BookOpen, Download, FileText, Search } from 'lucide-react';
-import LoadingSpinner from '@/components/ui/loading-spinner';
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BookOpen, Download, FileText, Search } from "lucide-react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
+
+interface FileObject {
+  originalName: string;
+  filename: string;
+  url?: string;
+  [key: string]: any;
+}
+
+interface Material {
+  _id: string;
+  title: string;
+  type: string;
+  language: string;
+  description: string;
+  content: string;
+  files: FileObject[];
+  uploadedBy: {
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface LearningCenterProps {
   token: string;
 }
 
 export default function LearningCenter({ token }: LearningCenterProps) {
-  const [materials, setMaterials] = useState([]);
-  const [filteredMaterials, setFilteredMaterials] = useState([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [filteredMaterials, setFilteredMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [languageFilter, setLanguageFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [languageFilter, setLanguageFilter] = useState("all");
+  const [expandedDescriptions, setExpandedDescriptions] = useState<
+    Record<string, boolean>
+  >({});
 
   const fetchMaterials = async () => {
     try {
-      const response = await fetch('/api/materials', {
+      const response = await fetch("/api/materials", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
+      
       if (response.ok) {
         const data = await response.json();
         setMaterials(data);
         setFilteredMaterials(data);
+      } else {
+        console.error("Failed to fetch materials");
       }
     } catch (error) {
-      console.error('Error fetching materials:', error);
+      console.error("Error fetching materials:", error);
     } finally {
       setLoading(false);
     }
@@ -44,32 +84,43 @@ export default function LearningCenter({ token }: LearningCenterProps) {
     let filtered = materials;
 
     if (searchTerm) {
-      filtered = filtered.filter((material: any) =>
-        material.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        material.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (material) =>
+          material.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          material.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter((material: any) => material.type === typeFilter);
+    if (typeFilter !== "all") {
+      filtered = filtered.filter(
+        (material) => material.type === typeFilter
+      );
     }
 
-    if (languageFilter !== 'all') {
-      filtered = filtered.filter((material: any) => 
-        material.language === languageFilter || material.language === 'both'
+    if (languageFilter !== "all") {
+      filtered = filtered.filter(
+        (material) =>
+          material.language === languageFilter || material.language === "both"
       );
     }
 
     setFilteredMaterials(filtered);
   };
 
+  const toggleDescription = (id: string) => {
+    setExpandedDescriptions((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'grammar':
+      case "grammar":
         return <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />;
-      case 'template':
+      case "template":
         return <FileText className="h-4 w-4 sm:h-5 sm:w-5" />;
-      case 'tips':
+      case "tips":
         return <Search className="h-4 w-4 sm:h-5 sm:w-5" />;
       default:
         return <FileText className="h-4 w-4 sm:h-5 sm:w-5" />;
@@ -78,33 +129,72 @@ export default function LearningCenter({ token }: LearningCenterProps) {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'grammar':
-        return 'bg-blue-100 text-blue-800';
-      case 'template':
-        return 'bg-green-100 text-green-800';
-      case 'tips':
-        return 'bg-purple-100 text-purple-800';
+      case "grammar":
+        return "bg-blue-100 text-blue-800";
+      case "template":
+        return "bg-green-100 text-green-800";
+      case "tips":
+        return "bg-purple-100 text-purple-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getLanguageColor = (language: string) => {
     switch (language) {
-      case 'english':
-        return 'bg-orange-100 text-orange-800';
-      case 'gujarati':
-        return 'bg-pink-100 text-pink-800';
-      case 'both':
-        return 'bg-indigo-100 text-indigo-800';
+      case "english":
+        return "bg-orange-100 text-orange-800";
+      case "gujarati":
+        return "bg-pink-100 text-pink-800";
+      case "both":
+        return "bg-indigo-100 text-indigo-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const downloadFile = async (file: FileObject) => {
+    try {
+      let downloadUrl;
+      
+      if (file.url) {
+        downloadUrl = file.url;
+      } else if (file.filename) {
+        downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
+      } else {
+        throw new Error("No valid file information available");
+      }
+
+      const response = await fetch(downloadUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.originalName || "download";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed", err);
+      alert("Download failed. Please try again.");
     }
   };
 
   useEffect(() => {
-    fetchMaterials();
-  }, []);
+    if (token) {
+      fetchMaterials();
+    }
+  }, [token]);
 
   useEffect(() => {
     filterMaterials();
@@ -151,10 +241,18 @@ export default function LearningCenter({ token }: LearningCenterProps) {
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs sm:text-sm">All Types</SelectItem>
-                  <SelectItem value="grammar" className="text-xs sm:text-sm">Grammar Notes</SelectItem>
-                  <SelectItem value="template" className="text-xs sm:text-sm">Templates</SelectItem>
-                  <SelectItem value="tips" className="text-xs sm:text-sm">PTE Tips</SelectItem>
+                  <SelectItem value="all" className="text-xs sm:text-sm">
+                    All Types
+                  </SelectItem>
+                  <SelectItem value="grammar" className="text-xs sm:text-sm">
+                    Grammar Notes
+                  </SelectItem>
+                  <SelectItem value="template" className="text-xs sm:text-sm">
+                    Templates
+                  </SelectItem>
+                  <SelectItem value="tips" className="text-xs sm:text-sm">
+                    PTE Tips
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Select value={languageFilter} onValueChange={setLanguageFilter}>
@@ -162,44 +260,83 @@ export default function LearningCenter({ token }: LearningCenterProps) {
                   <SelectValue placeholder="Filter by language" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs sm:text-sm">All Languages</SelectItem>
-                  <SelectItem value="english" className="text-xs sm:text-sm">English</SelectItem>
-                  <SelectItem value="gujarati" className="text-xs sm:text-sm">Gujarati</SelectItem>
-                  <SelectItem value="both" className="text-xs sm:text-sm">Both Languages</SelectItem>
+                  <SelectItem value="all" className="text-xs sm:text-sm">
+                    All Languages
+                  </SelectItem>
+                  <SelectItem value="english" className="text-xs sm:text-sm">
+                    English
+                  </SelectItem>
+                  <SelectItem value="gujarati" className="text-xs sm:text-sm">
+                    Gujarati
+                  </SelectItem>
+                  <SelectItem value="both" className="text-xs sm:text-sm">
+                    Both Languages
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredMaterials.map((material: any) => (
-              <Card key={material._id} className="hover:shadow-md transition-shadow overflow-hidden">
+            {filteredMaterials.map((material) => (
+              <Card
+                key={material._id}
+                className="hover:shadow-md transition-shadow overflow-hidden"
+              >
                 <CardContent className="p-3 sm:p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-2 min-w-0">
                       {getTypeIcon(material.type)}
-                      <h3 className="font-semibold text-base sm:text-lg truncate">{material.title}</h3>
+                      <h3 className="font-semibold text-base sm:text-lg truncate">
+                        {material.title}
+                      </h3>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-3">
                     <Badge className={`${getTypeColor(material.type)} text-xs`}>
                       {material.type}
                     </Badge>
-                    <Badge className={`${getLanguageColor(material.language)} text-xs`}>
+                    <Badge
+                      className={`${getLanguageColor(
+                        material.language
+                      )} text-xs`}
+                    >
                       {material.language}
                     </Badge>
                   </div>
 
                   {material.description && (
-                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">
-                      {material.description}
-                    </p>
+                    <div className="text-xs sm:text-sm text-gray-600 mb-3">
+                      <p
+                        className={
+                          expandedDescriptions[material._id]
+                            ? ""
+                            : "line-clamp-2"
+                        }
+                      >
+                        {material.description}
+                      </p>
+                      {material.description.length > 100 && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => toggleDescription(material._id)}
+                          className="mt-1 p-0 text-blue-600 hover:underline"
+                        >
+                          {expandedDescriptions[material._id]
+                            ? "Read Less"
+                            : "Read More"}
+                        </Button>
+                      )}
+                    </div>
                   )}
 
                   {material.content && (
                     <div className="mb-3">
-                      <h4 className="font-medium text-xs sm:text-sm mb-1">Content Preview:</h4>
+                      <h4 className="font-medium text-xs sm:text-sm mb-1">
+                        Content Preview:
+                      </h4>
                       <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded line-clamp-3">
                         {material.content}
                       </p>
@@ -208,18 +345,34 @@ export default function LearningCenter({ token }: LearningCenterProps) {
 
                   {material.files && material.files.length > 0 && (
                     <div className="mb-3">
-                      <h4 className="font-medium text-xs sm:text-sm mb-2">Files ({material.files.length}):</h4>
+                      <h4 className="font-medium text-xs sm:text-sm mb-2">
+                        Files ({material.files.length}):
+                      </h4>
                       <div className="space-y-1">
-                        {material.files.slice(0, 2).map((file: any, index: number) => (
-                          <div key={index} className="flex items-center justify-between text-xs">
-                            <span className="truncate max-w-[120px] sm:max-w-[150px]">{file.originalName}</span>
-                            <Button variant="outline" size="sm" className="h-6 w-6 p-0" asChild>
-                              <a href={file.path} target="_blank" rel="noopener noreferrer">
-                                <Download className="h-3 w-3" />
-                              </a>
-                            </Button>
-                          </div>
-                        ))}
+                        {material.files
+                          .slice(0, 2)
+                          .map((file: FileObject, index: number) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between text-xs"
+                            >
+                              <span
+                                className="truncate max-w-[120px] sm:max-w-[150px]"
+                                title={file.originalName}
+                              >
+                                {file.originalName}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-auto px-2"
+                                onClick={() => downloadFile(file)}
+                              >
+                                <Download className="h-3 w-3 inline-block mr-1" />
+                                Download
+                              </Button>
+                            </div>
+                          ))}
                         {material.files.length > 2 && (
                           <p className="text-xs text-gray-500">
                             +{material.files.length - 2} more files
@@ -230,8 +383,12 @@ export default function LearningCenter({ token }: LearningCenterProps) {
                   )}
 
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span className="truncate max-w-[100px] sm:max-w-none">By {material.uploadedBy?.name}</span>
-                    <span>{new Date(material.createdAt).toLocaleDateString()}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-none">
+                      By {material.uploadedBy?.name || "Unknown"}
+                    </span>
+                    <span>
+                      {new Date(material.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -241,7 +398,9 @@ export default function LearningCenter({ token }: LearningCenterProps) {
           {filteredMaterials.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4" />
-              <p className="text-sm sm:text-base">No learning materials found</p>
+              <p className="text-sm sm:text-base">
+                No learning materials found
+              </p>
             </div>
           )}
         </CardContent>

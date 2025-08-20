@@ -21,6 +21,7 @@ export const verifyToken = (token) => {
   try {
     return jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
   } catch (error) {
+    console.error('Token verification error:', error);
     return null;
   }
 };

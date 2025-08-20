@@ -3,7 +3,14 @@ import connectDB from '@/lib/db';
 import Material from '@/models/Material';
 import { verifyToken, getTokenFromHeaders } from '@/utils/auth';
 
-export async function GET(request) {
+interface DecodedToken {
+  userId: string;
+  role: string;
+  iat?: number;
+  exp?: number;
+}
+
+export async function GET(request: Request) {
   try {
     await connectDB();
     
@@ -12,7 +19,7 @@ export async function GET(request) {
       return NextResponse.json({ message: 'No token provided' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as DecodedToken | null;
     if (!decoded) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
@@ -32,7 +39,7 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+export async function POST(request: Request) {
   try {
     await connectDB();
     
@@ -41,7 +48,7 @@ export async function POST(request) {
       return NextResponse.json({ message: 'No token provided' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as DecodedToken | null;
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
@@ -79,7 +86,7 @@ export async function POST(request) {
   }
 }
 
-export async function PUT(request) {
+export async function PUT(request: Request) {
   try {
     await connectDB();
     
@@ -88,12 +95,11 @@ export async function PUT(request) {
       return NextResponse.json({ message: 'No token provided' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as DecodedToken | null;
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    // Get the ID from query parameters
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
@@ -145,7 +151,7 @@ export async function PUT(request) {
   }
 }
 
-export async function DELETE(request) {
+export async function DELETE(request: Request) {
   try {
     await connectDB();
     
@@ -154,12 +160,11 @@ export async function DELETE(request) {
       return NextResponse.json({ message: 'No token provided' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token) as DecodedToken | null;
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    // Get the ID from query parameters
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
@@ -170,7 +175,6 @@ export async function DELETE(request) {
       );
     }
 
-    // Soft delete by setting isActive to false
     const material = await Material.findByIdAndUpdate(
       id,
       { isActive: false },

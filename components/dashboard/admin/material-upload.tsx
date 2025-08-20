@@ -29,7 +29,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface UploadedFile {
   originalName: string;
+  filename: string;
   url: string;
+  size: number;
+  mimetype: string;
   [key: string]: any;
 }
 
@@ -41,6 +44,9 @@ interface Material {
   description: string;
   content: string;
   files: UploadedFile[];
+  uploadedBy: {
+    name: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +80,8 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       if (response.ok) {
         const data = await response.json();
         setMaterials(data);
+      } else {
+        console.error('Failed to fetch materials');
       }
     } catch (error) {
       console.error('Error fetching materials:', error);
@@ -85,6 +93,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+    
     const uploadPromises = Array.from(files).map(async (file) => {
       const formData = new FormData();
       formData.append('file', file);
@@ -96,16 +105,30 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           },
           body: formData,
         });
+        
         if (response.ok) {
-          return await response.json();
+          const result = await response.json();
+          return {
+            originalName: result.originalName,
+            filename: result.filename,
+            url: result.url,
+            size: result.size,
+            mimetype: result.mimetype
+          };
+        } else {
+          console.error('Upload failed:', await response.text());
         }
       } catch (error) {
         console.error('Upload error:', error);
       }
       return null;
     });
+    
     const results = await Promise.all(uploadPromises);
-    const successfulUploads: UploadedFile[] = results.filter((result): result is UploadedFile => result !== null);
+    const successfulUploads = results.filter((result): result is UploadedFile => 
+      result !== null
+    );
+    
     setUploadedFiles(prev => [...prev, ...successfulUploads]);
   };
 
@@ -130,15 +153,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       
       if (response.ok) {
         setIsDialogOpen(false);
-        setFormData({
-          title: '',
-          type: 'grammar',
-          language: 'english',
-          description: '',
-          content: ''
-        });
-        setUploadedFiles([]);
-        setEditingMaterial(null);
+        resetForm();
         fetchMaterials();
       } else {
         console.error('Failed to save material');
@@ -187,7 +202,12 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   };
 
   const downloadFile = (file: UploadedFile) => {
-    window.open(file.url, '_blank');
+    if (file.url) {
+      window.open(file.url, '_blank');
+    } else if (file.filename) {
+      const downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
+      window.open(downloadUrl, '_blank');
+    }
   };
 
   const resetForm = () => {
@@ -204,7 +224,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
 
   useEffect(() => {
     fetchMaterials();
-  }, []);
+  }, [token]);
 
   return (
     <div className="space-y-6">
