@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -39,31 +43,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-interface TaskManagerProps {
-  token: string;
-}
-
-interface Task {
-  _id: string;
-  title: string;
-  type: string;
-  description: string;
-  quantity: number;
-  deadline: string | null;
-  assignedTo: any[];
-  createdAt: string;
-  createdBy: any;
-}
-
-interface Student {
-  _id: string;
-  name: string;
-  email: string;
-  isActive: boolean;
-}
-
 const TASK_TYPES = [
-  // Speaking & Writing Module
   'Personal Introduction',
   'Read Aloud',
   'Repeat Sentence',
@@ -72,15 +52,11 @@ const TASK_TYPES = [
   'Answer Short Question',
   'Summarize Written Text',
   'Essay',
-  
-  // Reading Module
   'Multiple Choice, Choose Single Answer',
   'Multiple Choice, Choose Multiple Answers',
   'Re-order Paragraphs',
   'Reading Fill in the Blanks',
   'Reading & Writing Fill in the Blanks',
-  
-  // Listening Module
   'Summarize Spoken Text',
   'Multiple Choice, Choose Multiple Answers (Listening)',
   'Fill in the Blanks (Listening)',
@@ -91,26 +67,69 @@ const TASK_TYPES = [
   'Write from Dictation'
 ];
 
+interface Student {
+  _id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  type: string;
+  description: string;
+  quantity: number;
+  deadline?: string;
+  assignedTo: Array<Student | string>;
+  assignToAll?: boolean;
+  createdAt: string;
+}
+
+interface TaskFormData {
+  title: string;
+  type: string;
+  description: string;
+  quantity: number;
+  deadline: string;
+  assignedTo: string[];
+  assignToAll: boolean;
+}
+
+interface TaskManagerProps {
+  token: string;
+}
+
 export default function TaskManager({ token }: TaskManagerProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  
-  const [formData, setFormData] = useState({
+
+  const [createFormData, setCreateFormData] = useState<TaskFormData>({
     title: '',
     type: '',
     description: '',
     quantity: 1,
     deadline: '',
-    assignedTo: [] as string[],
+    assignedTo: [],
     assignToAll: false
   });
 
-  const fetchTasks = async () => {
+  const [editFormData, setEditFormData] = useState<TaskFormData>({
+    title: '',
+    type: '',
+    description: '',
+    quantity: 1,
+    deadline: '',
+    assignedTo: [],
+    assignToAll: false
+  });
+
+  const fetchTasks = async (): Promise<void> => {
     try {
       const response = await fetch('/api/tasks', {
         headers: {
@@ -118,8 +137,10 @@ export default function TaskManager({ token }: TaskManagerProps) {
         },
       });
       if (response.ok) {
-        const data = await response.json();
+        const data: Task[] = await response.json();
         setTasks(data);
+      } else {
+        console.error('Failed to fetch tasks');
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -128,7 +149,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (): Promise<void> => {
     try {
       const response = await fetch('/api/users', {
         headers: {
@@ -136,35 +157,33 @@ export default function TaskManager({ token }: TaskManagerProps) {
         },
       });
       if (response.ok) {
-        const data = await response.json();
-        setStudents(data.filter((user: Student) => user.isActive));
+        const data: Student[] = await response.json();
+        setStudents(data.filter((user) => user.isActive));
+      } else {
+        console.error('Failed to fetch students');
       }
     } catch (error) {
       console.error('Error fetching students:', error);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-      const url = editingTask ? `/api/tasks/${editingTask._id}` : '/api/tasks';
-      const method = editingTask ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(createFormData),
       });
 
       if (response.ok) {
-        setIsDialogOpen(false);
-        setIsEditDialogOpen(false);
-        setFormData({
+        setIsCreateDialogOpen(false);
+        setCreateFormData({
           title: '',
           type: '',
           description: '',
@@ -173,17 +192,57 @@ export default function TaskManager({ token }: TaskManagerProps) {
           assignedTo: [],
           assignToAll: false
         });
-        setEditingTask(null);
         fetchTasks();
+      } else {
+        console.error('Failed to create task');
       }
     } catch (error) {
-      console.error('Error creating/updating task:', error);
+      console.error('Error creating task:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleEditSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/tasks/${editingTask._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (response.ok) {
+        setIsEditDialogOpen(false);
+        setEditingTask(null);
+        setEditFormData({
+          title: '',
+          type: '',
+          description: '',
+          quantity: 1,
+          deadline: '',
+          assignedTo: [],
+          assignToAll: false
+        });
+        fetchTasks();
+      } else {
+        console.error('Failed to update task');
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string): Promise<void> => {
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'DELETE',
@@ -194,42 +253,66 @@ export default function TaskManager({ token }: TaskManagerProps) {
 
       if (response.ok) {
         fetchTasks();
+      } else {
+        console.error('Failed to delete task');
       }
     } catch (error) {
       console.error('Error deleting task:', error);
     }
   };
 
-  const handleEditTask = (task: Task) => {
+  const handleEditTask = (task: Task): void => {
     setEditingTask(task);
-    setFormData({
+    setEditFormData({
       title: task.title,
       type: task.type,
       description: task.description,
       quantity: task.quantity,
       deadline: task.deadline || '',
-      assignedTo: task.assignedTo.map((student: any) => student._id),
+      assignedTo: task.assignedTo.map(student => typeof student === 'string' ? student : student._id),
       assignToAll: task.assignedTo.length === 0
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleStudentSelection = (studentId: string, checked: boolean) => {
+  const handleCreateStudentSelection = (studentId: string, checked: boolean): void => {
     if (checked) {
-      setFormData(prev => ({
+      setCreateFormData(prev => ({
         ...prev,
         assignedTo: [...prev.assignedTo, studentId]
       }));
     } else {
-      setFormData(prev => ({
+      setCreateFormData(prev => ({
         ...prev,
         assignedTo: prev.assignedTo.filter(id => id !== studentId)
       }));
     }
   };
 
-  const handleAssignToAll = (checked: boolean) => {
-    setFormData(prev => ({
+  const handleEditStudentSelection = (studentId: string, checked: boolean): void => {
+    if (checked) {
+      setEditFormData(prev => ({
+        ...prev,
+        assignedTo: [...prev.assignedTo, studentId]
+      }));
+    } else {
+      setEditFormData(prev => ({
+        ...prev,
+        assignedTo: prev.assignedTo.filter(id => id !== studentId)
+      }));
+    }
+  };
+
+  const handleCreateAssignToAll = (checked: boolean): void => {
+    setCreateFormData(prev => ({
+      ...prev,
+      assignToAll: checked,
+      assignedTo: checked ? [] : prev.assignedTo
+    }));
+  };
+
+  const handleEditAssignToAll = (checked: boolean): void => {
+    setEditFormData(prev => ({
       ...prev,
       assignToAll: checked,
       assignedTo: checked ? [] : prev.assignedTo
@@ -239,16 +322,19 @@ export default function TaskManager({ token }: TaskManagerProps) {
   useEffect(() => {
     fetchTasks();
     fetchStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const renderTaskForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-4">
+  const renderCreateTaskForm = () => (
+    <form onSubmit={handleCreateSubmit} className="space-y-4">
       <div>
         <Label htmlFor="title">Task Title</Label>
         <Input
           id="title"
-          value={formData.title}
-          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          value={createFormData.title}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            setCreateFormData(prev => ({ ...prev, title: e.target.value }))
+          }
           required
           className="mt-1"
         />
@@ -256,7 +342,12 @@ export default function TaskManager({ token }: TaskManagerProps) {
 
       <div>
         <Label htmlFor="type">Task Type</Label>
-        <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+        <Select
+          value={createFormData.type}
+          onValueChange={(value: string) =>
+            setCreateFormData(prev => ({ ...prev, type: value }))
+          }
+        >
           <SelectTrigger className="mt-1">
             <SelectValue placeholder="Select task type" />
           </SelectTrigger>
@@ -274,8 +365,10 @@ export default function TaskManager({ token }: TaskManagerProps) {
         <Label htmlFor="description">Description</Label>
         <Textarea
           id="description"
-          value={formData.description}
-          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          value={createFormData.description}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+            setCreateFormData(prev => ({ ...prev, description: e.target.value }))
+          }
           required
           className="mt-1"
           rows={3}
@@ -288,9 +381,11 @@ export default function TaskManager({ token }: TaskManagerProps) {
           <Input
             id="quantity"
             type="number"
-            min="1"
-            value={formData.quantity}
-            onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) }))}
+            min={1}
+            value={createFormData.quantity}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setCreateFormData(prev => ({ ...prev, quantity: parseInt(e.target.value, 10) || 1 }))
+            }
             required
             className="mt-1"
           />
@@ -301,8 +396,10 @@ export default function TaskManager({ token }: TaskManagerProps) {
           <Input
             id="deadline"
             type="date"
-            value={formData.deadline}
-            onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+            value={createFormData.deadline}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setCreateFormData(prev => ({ ...prev, deadline: e.target.value }))
+            }
             className="mt-1"
           />
         </div>
@@ -313,25 +410,29 @@ export default function TaskManager({ token }: TaskManagerProps) {
         <div className="mt-2 space-y-2">
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="assignToAll"
-              checked={formData.assignToAll}
-              onCheckedChange={handleAssignToAll}
+              id="create-assignToAll"
+              checked={createFormData.assignToAll}
+              onCheckedChange={(checked: boolean) => handleCreateAssignToAll(checked)}
             />
-            <Label htmlFor="assignToAll" className="text-sm">Assign to all students</Label>
+            <Label htmlFor="create-assignToAll" className="text-sm">
+              Assign to all students
+            </Label>
           </div>
-          
-          {!formData.assignToAll && (
+
+          {!createFormData.assignToAll && (
             <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
               <Label className="text-sm font-medium">Select Students:</Label>
               <div className="mt-2 space-y-2">
                 {students.map((student) => (
                   <div key={student._id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={student._id}
-                      checked={formData.assignedTo.includes(student._id)}
-                      onCheckedChange={(checked) => handleStudentSelection(student._id, checked as boolean)}
+                      id={`create-${student._id}`}
+                      checked={createFormData.assignedTo.includes(student._id)}
+                      onCheckedChange={(checked: boolean) =>
+                        handleCreateStudentSelection(student._id, checked)
+                      }
                     />
-                    <Label htmlFor={student._id} className="text-sm truncate">
+                    <Label htmlFor={`create-${student._id}`} className="text-sm truncate">
                       {student.name} ({student.email})
                     </Label>
                   </div>
@@ -343,7 +444,131 @@ export default function TaskManager({ token }: TaskManagerProps) {
       </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? <LoadingSpinner size="sm" /> : (editingTask ? 'Update Task' : 'Create Task')}
+        {isSubmitting ? <LoadingSpinner size="sm" /> : 'Create Task'}
+      </Button>
+    </form>
+  );
+
+  const renderEditTaskForm = () => (
+    <form onSubmit={handleEditSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="edit-title">Task Title</Label>
+        <Input
+          id="edit-title"
+          value={editFormData.title}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            setEditFormData(prev => ({ ...prev, title: e.target.value }))
+          }
+          required
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="edit-type">Task Type</Label>
+        <Select
+          value={editFormData.type}
+          onValueChange={(value: string) =>
+            setEditFormData(prev => ({ ...prev, type: value }))
+          }
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select task type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TASK_TYPES.map(type => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="edit-description">Description</Label>
+        <Textarea
+          id="edit-description"
+          value={editFormData.description}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+            setEditFormData(prev => ({ ...prev, description: e.target.value }))
+          }
+          required
+          className="mt-1"
+          rows={3}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="edit-quantity">Quantity</Label>
+          <Input
+            id="edit-quantity"
+            type="number"
+            min={1}
+            value={editFormData.quantity}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setEditFormData(prev => ({ ...prev, quantity: parseInt(e.target.value, 10) || 1 }))
+            }
+            required
+            className="mt-1"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="edit-deadline">Deadline (Optional)</Label>
+          <Input
+            id="edit-deadline"
+            type="date"
+            value={editFormData.deadline}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setEditFormData(prev => ({ ...prev, deadline: e.target.value }))
+            }
+            className="mt-1"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label>Assignment</Label>
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="edit-assignToAll"
+              checked={editFormData.assignToAll}
+              onCheckedChange={(checked: boolean) => handleEditAssignToAll(checked)}
+            />
+            <Label htmlFor="edit-assignToAll" className="text-sm">
+              Assign to all students
+            </Label>
+          </div>
+
+          {!editFormData.assignToAll && (
+            <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+              <Label className="text-sm font-medium">Select Students:</Label>
+              <div className="mt-2 space-y-2">
+                {students.map((student) => (
+                  <div key={student._id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-${student._id}`}
+                      checked={editFormData.assignedTo.includes(student._id)}
+                      onCheckedChange={(checked: boolean) =>
+                        handleEditStudentSelection(student._id, checked)
+                      }
+                    />
+                    <Label htmlFor={`edit-${student._id}`} className="text-sm truncate">
+                      {student.name} ({student.email})
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? <LoadingSpinner size="sm" /> : 'Update Task'}
       </Button>
     </form>
   );
@@ -359,7 +584,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                 Create and manage daily tasks for students
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
@@ -369,24 +594,9 @@ export default function TaskManager({ token }: TaskManagerProps) {
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Task</DialogTitle>
-                  <DialogDescription>
-                    Add a new task for students to complete
-                  </DialogDescription>
+                  <DialogDescription>Add a new task for students to complete</DialogDescription>
                 </DialogHeader>
-                {renderTaskForm()}
-              </DialogContent>
-            </Dialog>
-
-            {/* Edit Task Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Edit Task</DialogTitle>
-                  <DialogDescription>
-                    Update task details
-                  </DialogDescription>
-                </DialogHeader>
-                {renderTaskForm()}
+                {renderCreateTaskForm()}
               </DialogContent>
             </Dialog>
           </div>
@@ -438,9 +648,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                             'No deadline'
                           )}
                         </TableCell>
-                        <TableCell>
-                          {new Date(task.createdAt).toLocaleDateString()}
-                        </TableCell>
+                        <TableCell>{new Date(task.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
                             <Button
@@ -491,9 +699,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                         <CardTitle className="text-lg truncate">{task.title}</CardTitle>
                         <Badge variant="outline">{task.quantity}</Badge>
                       </div>
-                      <CardDescription className="truncate">
-                        {task.type}
-                      </CardDescription>
+                      <CardDescription className="truncate">{task.type}</CardDescription>
                     </CardHeader>
                     <CardContent className="pb-3">
                       <div className="space-y-3">
@@ -503,22 +709,18 @@ export default function TaskManager({ token }: TaskManagerProps) {
                             {task.assignedTo.length === 0 ? 'All students' : `${task.assignedTo.length} students`}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
                           <span className="text-sm">
-                            {task.deadline ? (
-                              `Due: ${new Date(task.deadline).toLocaleDateString()}`
-                            ) : (
-                              'No deadline'
-                            )}
+                            {task.deadline ? `Due: ${new Date(task.deadline).toLocaleDateString()}` : 'No deadline'}
                           </span>
                         </div>
-                        
+
                         <div className="text-sm text-muted-foreground">
                           Created: {new Date(task.createdAt).toLocaleDateString()}
                         </div>
-                        
+
                         <div className="flex space-x-2 pt-2">
                           <Button
                             variant="outline"
@@ -570,6 +772,17 @@ export default function TaskManager({ token }: TaskManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>Update task details</DialogDescription>
+          </DialogHeader>
+          {renderEditTaskForm()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

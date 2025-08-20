@@ -93,8 +93,9 @@ export async function PUT(request) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    // Get the ID from query parameters
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
     
     if (!id) {
       return NextResponse.json(
@@ -123,7 +124,7 @@ export async function PUT(request) {
         files: files || [],
         updatedAt: new Date()
       },
-      { new: true }
+      { new: true, runValidators: true }
     ).populate('uploadedBy', 'name');
 
     if (!material) {
@@ -158,8 +159,9 @@ export async function DELETE(request) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    // Get the ID from query parameters
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
     
     if (!id) {
       return NextResponse.json(

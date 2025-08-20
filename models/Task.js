@@ -7,8 +7,30 @@ const taskSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['Repeat Sentence', 'Read Aloud', 'Essay', 'Summarize Spoken Text', 'Listening Fill Blanks', 'Multiple Choice'],
-    required: true
+    required: true,
+    enum: [
+      'Personal Introduction',
+      'Read Aloud',
+      'Repeat Sentence',
+      'Describe Image',
+      'Retell Lecture',
+      'Answer Short Question',
+      'Summarize Written Text',
+      'Essay',
+      'Multiple Choice, Choose Single Answer',
+      'Multiple Choice, Choose Multiple Answers',
+      'Re-order Paragraphs',
+      'Reading Fill in the Blanks',
+      'Reading & Writing Fill in the Blanks',
+      'Summarize Spoken Text',
+      'Multiple Choice, Choose Multiple Answers (Listening)',
+      'Fill in the Blanks (Listening)',
+      'Highlight Correct Summary',
+      'Multiple Choice, Choose Single Answer (Listening)',
+      'Select Missing Word',
+      'Highlight Incorrect Words',
+      'Write from Dictation'
+    ]
   },
   description: {
     type: String,

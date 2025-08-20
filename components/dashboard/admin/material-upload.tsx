@@ -53,7 +53,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -114,7 +113,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const url = editingMaterial ? `/api/materials/${editingMaterial._id}` : '/api/materials';
+      const url = editingMaterial ? `/api/materials?id=${editingMaterial._id}` : '/api/materials';
       const method = editingMaterial ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -131,7 +130,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       
       if (response.ok) {
         setIsDialogOpen(false);
-        setIsEditDialogOpen(false);
         setFormData({
           title: '',
           type: 'grammar',
@@ -142,6 +140,8 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
         setUploadedFiles([]);
         setEditingMaterial(null);
         fetchMaterials();
+      } else {
+        console.error('Failed to save material');
       }
     } catch (error) {
       console.error('Error creating/updating material:', error);
@@ -160,12 +160,12 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       content: material.content || ''
     });
     setUploadedFiles(material.files || []);
-    setIsEditDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/materials/${id}`, {
+      const response = await fetch(`/api/materials?id=${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -174,6 +174,8 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       
       if (response.ok) {
         fetchMaterials();
+      } else {
+        console.error('Failed to delete material');
       }
     } catch (error) {
       console.error('Error deleting material:', error);
@@ -186,6 +188,18 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
 
   const downloadFile = (file: UploadedFile) => {
     window.open(file.url, '_blank');
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      type: 'grammar',
+      language: 'english',
+      description: '',
+      content: ''
+    });
+    setUploadedFiles([]);
+    setEditingMaterial(null);
   };
 
   useEffect(() => {
@@ -203,18 +217,23 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                 Upload and manage grammar notes, templates, and PTE tips
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={resetForm}>
                   <Plus className="h-4 w-4 mr-2" />
                   Upload Material
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Upload Learning Material</DialogTitle>
+                  <DialogTitle>
+                    {editingMaterial ? 'Edit Learning Material' : 'Upload Learning Material'}
+                  </DialogTitle>
                   <DialogDescription>
-                    Add new learning materials for students
+                    {editingMaterial ? 'Update the learning material' : 'Add new learning materials for students'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -300,118 +319,6 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                               <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
                               <span className="text-sm truncate">{file.originalName}</span>
                             </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeFile(index)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? <LoadingSpinner size="sm" /> : 'Upload Material'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-
-            {/* Edit Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Edit Learning Material</DialogTitle>
-                  <DialogDescription>
-                    Update the learning material
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="edit-title">Title</Label>
-                    <Input
-                      id="edit-title"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-type">Material Type</Label>
-                    <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select material type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="grammar">Grammar Notes</SelectItem>
-                        <SelectItem value="template">Templates</SelectItem>
-                        <SelectItem value="tips">PTE Tips</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-language">Language</Label>
-                    <Select value={formData.language} onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="english">English</SelectItem>
-                        <SelectItem value="gujarati">Gujarati</SelectItem>
-                        <SelectItem value="both">Both Languages</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Textarea
-                      id="edit-description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-content">Text Content (Optional)</Label>
-                    <Textarea
-                      id="edit-content"
-                      value={formData.content}
-                      onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                      className="mt-1"
-                      rows={4}
-                      placeholder="Add text content here..."
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-files">Upload Files</Label>
-                    <div className="mt-2">
-                      <Input
-                        id="edit-files"
-                        type="file"
-                        multiple
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp3,.wav"
-                        onChange={handleFileUpload}
-                        className="mb-2"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Supported formats: PDF, DOC, DOCX, JPG, PNG, MP3, WAV
-                      </p>
-                    </div>
-
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-3 space-y-2 max-h-40 overflow-auto">
-                        <Label className="text-sm font-medium">Uploaded Files:</Label>
-                        {uploadedFiles.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                            <div className="flex items-center min-w-0">
-                              <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
-                              <span className="text-sm truncate">{file.originalName}</span>
-                            </div>
                             <div className="flex gap-2">
                               <Button
                                 type="button"
@@ -436,7 +343,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                     )}
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? <LoadingSpinner size="sm" /> : 'Update Material'}
+                    {isSubmitting ? <LoadingSpinner size="sm" /> : editingMaterial ? 'Update Material' : 'Upload Material'}
                   </Button>
                 </form>
               </DialogContent>
