@@ -66,13 +66,13 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'grammar':
-        return <BookOpen className="h-5 w-5" />;
+        return <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />;
       case 'template':
-        return <FileText className="h-5 w-5" />;
+        return <FileText className="h-4 w-4 sm:h-5 sm:w-5" />;
       case 'tips':
-        return <Search className="h-5 w-5" />;
+        return <Search className="h-4 w-4 sm:h-5 sm:w-5" />;
       default:
-        return <FileText className="h-5 w-5" />;
+        return <FileText className="h-4 w-4 sm:h-5 sm:w-5" />;
     }
   };
 
@@ -112,9 +112,9 @@ export default function LearningCenter({ token }: LearningCenterProps) {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="w-full max-w-6xl mx-auto">
         <CardHeader>
-          <CardTitle>Learning Center</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Learning Center</CardTitle>
         </CardHeader>
         <CardContent>
           <LoadingSpinner />
@@ -124,77 +124,82 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4">
       <Card>
         <CardHeader>
-          <CardTitle>Learning Center</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl sm:text-2xl">Learning Center</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Access grammar notes, templates, and PTE preparation tips
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <Input
-                placeholder="Search materials..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search materials..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full text-sm sm:text-base"
+                />
+              </div>
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="grammar">Grammar Notes</SelectItem>
-                <SelectItem value="template">Templates</SelectItem>
-                <SelectItem value="tips">PTE Tips</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={languageFilter} onValueChange={setLanguageFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Languages</SelectItem>
-                <SelectItem value="english">English</SelectItem>
-                <SelectItem value="gujarati">Gujarati</SelectItem>
-                <SelectItem value="both">Both Languages</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-40 text-xs sm:text-sm">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs sm:text-sm">All Types</SelectItem>
+                  <SelectItem value="grammar" className="text-xs sm:text-sm">Grammar Notes</SelectItem>
+                  <SelectItem value="template" className="text-xs sm:text-sm">Templates</SelectItem>
+                  <SelectItem value="tips" className="text-xs sm:text-sm">PTE Tips</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                <SelectTrigger className="w-full sm:w-40 text-xs sm:text-sm">
+                  <SelectValue placeholder="Filter by language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs sm:text-sm">All Languages</SelectItem>
+                  <SelectItem value="english" className="text-xs sm:text-sm">English</SelectItem>
+                  <SelectItem value="gujarati" className="text-xs sm:text-sm">Gujarati</SelectItem>
+                  <SelectItem value="both" className="text-xs sm:text-sm">Both Languages</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filteredMaterials.map((material: any) => (
-              <Card key={material._id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
+              <Card key={material._id} className="hover:shadow-md transition-shadow overflow-hidden">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 min-w-0">
                       {getTypeIcon(material.type)}
-                      <h3 className="font-semibold text-lg">{material.title}</h3>
+                      <h3 className="font-semibold text-base sm:text-lg truncate">{material.title}</h3>
                     </div>
                   </div>
                   
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <Badge className={getTypeColor(material.type)}>
+                    <Badge className={`${getTypeColor(material.type)} text-xs`}>
                       {material.type}
                     </Badge>
-                    <Badge className={getLanguageColor(material.language)}>
+                    <Badge className={`${getLanguageColor(material.language)} text-xs`}>
                       {material.language}
                     </Badge>
                   </div>
 
                   {material.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">
                       {material.description}
                     </p>
                   )}
 
                   {material.content && (
                     <div className="mb-3">
-                      <h4 className="font-medium text-sm mb-1">Content Preview:</h4>
+                      <h4 className="font-medium text-xs sm:text-sm mb-1">Content Preview:</h4>
                       <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded line-clamp-3">
                         {material.content}
                       </p>
@@ -203,12 +208,12 @@ export default function LearningCenter({ token }: LearningCenterProps) {
 
                   {material.files && material.files.length > 0 && (
                     <div className="mb-3">
-                      <h4 className="font-medium text-sm mb-2">Files ({material.files.length}):</h4>
+                      <h4 className="font-medium text-xs sm:text-sm mb-2">Files ({material.files.length}):</h4>
                       <div className="space-y-1">
                         {material.files.slice(0, 2).map((file: any, index: number) => (
                           <div key={index} className="flex items-center justify-between text-xs">
-                            <span className="truncate">{file.originalName}</span>
-                            <Button variant="outline" size="sm" asChild>
+                            <span className="truncate max-w-[120px] sm:max-w-[150px]">{file.originalName}</span>
+                            <Button variant="outline" size="sm" className="h-6 w-6 p-0" asChild>
                               <a href={file.path} target="_blank" rel="noopener noreferrer">
                                 <Download className="h-3 w-3" />
                               </a>
@@ -225,7 +230,7 @@ export default function LearningCenter({ token }: LearningCenterProps) {
                   )}
 
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>By {material.uploadedBy?.name}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-none">By {material.uploadedBy?.name}</span>
                     <span>{new Date(material.createdAt).toLocaleDateString()}</span>
                   </div>
                 </CardContent>
@@ -235,8 +240,8 @@ export default function LearningCenter({ token }: LearningCenterProps) {
 
           {filteredMaterials.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              <BookOpen className="h-12 w-12 mx-auto mb-4" />
-              <p>No learning materials found</p>
+              <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4" />
+              <p className="text-sm sm:text-base">No learning materials found</p>
             </div>
           )}
         </CardContent>

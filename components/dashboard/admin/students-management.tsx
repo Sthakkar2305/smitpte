@@ -77,57 +77,60 @@ export default function StudentsManagement({ token }: StudentsManagementProps) {
   }
 
   return (
-    <Card>
+    <Card className="overflow-x-auto">
       <CardHeader>
         <CardTitle>Students Management</CardTitle>
         <CardDescription>
           Manage student accounts and view their activity status
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead>Last Login</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {students.map((student: any) => (
-              <TableRow key={student._id}>
-                <TableCell className="font-medium">{student.name}</TableCell>
-                <TableCell>{student.email}</TableCell>
-                <TableCell>
-                  <Badge variant={student.isActive ? 'default' : 'secondary'}>
-                    {student.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {new Date(student.createdAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  {student.lastLogin 
-                    ? new Date(student.lastLogin).toLocaleDateString()
-                    : 'Never'
-                  }
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleStudentStatus(student._id, student.isActive)}
-                  >
-                    {student.isActive ? 'Deactivate' : 'Activate'}
-                  </Button>
-                </TableCell>
+      <CardContent className="p-0">
+        <div className="min-w-[600px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {students.map((student: any) => (
+                <TableRow key={student._id}>
+                  <TableCell className="font-medium max-w-xs truncate">{student.name}</TableCell>
+                  <TableCell className="max-w-xs truncate">{student.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={student.isActive ? 'default' : 'secondary'}>
+                      {student.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(student.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {student.lastLogin
+                      ? new Date(student.lastLogin).toLocaleDateString()
+                      : 'Never'
+                    }
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="whitespace-nowrap"
+                      onClick={() => toggleStudentStatus(student._id, student.isActive)}
+                    >
+                      {student.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

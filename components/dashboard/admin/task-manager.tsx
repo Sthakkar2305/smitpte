@@ -25,13 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Calendar, Users } from 'lucide-react';
+import { Plus, Calendar, Users, FileText } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 interface TaskManagerProps {
   token: string;
 }
-
 
 const TASK_TYPES = [
   // Speaking & Writing Module
@@ -62,14 +61,12 @@ const TASK_TYPES = [
   'Write from Dictation'
 ];
 
-
 export default function TaskManager({ token }: TaskManagerProps) {
   const [tasks, setTasks] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
- 
   
   const [formData, setFormData] = useState({
     title: '',
@@ -80,7 +77,6 @@ export default function TaskManager({ token }: TaskManagerProps) {
     assignedTo: [] as string[],
     assignToAll: false
   });
-  
 
   const fetchTasks = async () => {
     try {
@@ -178,19 +174,19 @@ export default function TaskManager({ token }: TaskManagerProps) {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6">
+      <Card className="w-full overflow-hidden">
+        <CardHeader className="px-4 py-5 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle>Task Management</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl sm:text-2xl">Task Management</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 Create and manage daily tasks for students
               </CardDescription>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   New Task
                 </Button>
@@ -242,28 +238,30 @@ export default function TaskManager({ token }: TaskManagerProps) {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) }))}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="quantity">Quantity</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        value={formData.quantity}
+                        onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) }))}
+                        required
+                        className="mt-1"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="deadline">Deadline (Optional)</Label>
-                    <Input
-                      id="deadline"
-                      type="date"
-                      value={formData.deadline}
-                      onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                      className="mt-1"
-                    />
+                    <div>
+                      <Label htmlFor="deadline">Deadline (Optional)</Label>
+                      <Input
+                        id="deadline"
+                        type="date"
+                        value={formData.deadline}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -275,7 +273,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                           checked={formData.assignToAll}
                           onCheckedChange={handleAssignToAll}
                         />
-                        <Label htmlFor="assignToAll">Assign to all students</Label>
+                        <Label htmlFor="assignToAll" className="text-sm">Assign to all students</Label>
                       </div>
                       
                       {!formData.assignToAll && (
@@ -289,7 +287,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                                   checked={formData.assignedTo.includes(student._id)}
                                   onCheckedChange={(checked) => handleStudentSelection(student._id, checked as boolean)}
                                 />
-                                <Label htmlFor={student._id} className="text-sm">
+                                <Label htmlFor={student._id} className="text-sm truncate">
                                   {student.name} ({student.email})
                                 </Label>
                               </div>
@@ -308,52 +306,109 @@ export default function TaskManager({ token }: TaskManagerProps) {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-6 pb-4">
           {loading ? (
-            <LoadingSpinner />
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[20%]">Title</TableHead>
+                      <TableHead className="w-[15%]">Type</TableHead>
+                      <TableHead className="w-[10%]">Quantity</TableHead>
+                      <TableHead className="w-[15%]">Assigned To</TableHead>
+                      <TableHead className="w-[15%]">Deadline</TableHead>
+                      <TableHead className="w-[15%]">Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.map((task: any) => (
+                      <TableRow key={task._id}>
+                        <TableCell className="font-medium truncate max-w-[200px]">{task.title}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="truncate max-w-[150px]">{task.type}</Badge>
+                        </TableCell>
+                        <TableCell>{task.quantity}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">
+                              {task.assignedTo.length === 0 ? 'All students' : `${task.assignedTo.length} students`}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {task.deadline ? (
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span>{new Date(task.deadline).toLocaleDateString()}</span>
+                            </div>
+                          ) : (
+                            'No deadline'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(task.createdAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4">
                 {tasks.map((task: any) => (
-                  <TableRow key={task._id}>
-                    <TableCell className="font-medium">{task.title}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{task.type}</Badge>
-                    </TableCell>
-                    <TableCell>{task.quantity}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <Users className="h-4 w-4 mr-2" />
-                        {task.assignedTo.length === 0 ? 'All students' : `${task.assignedTo.length} students`}
+                  <Card key={task._id} className="w-full">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <CardTitle className="text-lg truncate">{task.title}</CardTitle>
+                        <Badge variant="outline">{task.quantity}</Badge>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {task.deadline ? (
+                      <CardDescription className="truncate">
+                        {task.type}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-3">
+                      <div className="space-y-3">
                         <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          {new Date(task.deadline).toLocaleDateString()}
+                          <Users className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm">
+                            {task.assignedTo.length === 0 ? 'All students' : `${task.assignedTo.length} students`}
+                          </span>
                         </div>
-                      ) : (
-                        'No deadline'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(task.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
+                        
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm">
+                            {task.deadline ? (
+                              `Due: ${new Date(task.deadline).toLocaleDateString()}`
+                            ) : (
+                              'No deadline'
+                            )}
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm text-muted-foreground">
+                          Created: {new Date(task.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
+          )}
+          {tasks.length === 0 && !loading && (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="h-12 w-12 mx-auto mb-4" />
+              <p>No tasks found</p>
+            </div>
           )}
         </CardContent>
       </Card>

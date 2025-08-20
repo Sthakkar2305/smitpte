@@ -141,7 +141,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Learning Materials</CardTitle>
               <CardDescription>
@@ -235,15 +235,15 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                         Supported formats: PDF, DOC, DOCX, JPG, PNG, MP3, WAV
                       </p>
                     </div>
-                    
+
                     {uploadedFiles.length > 0 && (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-2 max-h-40 overflow-auto">
                         <Label className="text-sm font-medium">Uploaded Files:</Label>
                         {uploadedFiles.map((file, index) => (
                           <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                            <div className="flex items-center">
-                              <FileText className="h-4 w-4 mr-2" />
-                              <span className="text-sm">{file.originalName}</span>
+                            <div className="flex items-center min-w-0">
+                              <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span className="text-sm truncate">{file.originalName}</span>
                             </div>
                             <Button
                               type="button"
@@ -276,7 +276,7 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                   <TableHead>Title</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Language</TableHead>
-                  <TableHead>Files</TableHead>
+                  <TableHead className="text-right">Files</TableHead>
                   <TableHead>Uploaded</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -284,14 +284,14 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
               <TableBody>
                 {materials.map((material: any) => (
                   <TableRow key={material._id}>
-                    <TableCell className="font-medium">{material.title}</TableCell>
+                    <TableCell className="font-medium max-w-xs truncate">{material.title}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{material.type}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{material.language}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       {material.files?.length || 0} files
                     </TableCell>
                     <TableCell>

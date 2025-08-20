@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Calendar, FileText, Clock, Upload } from 'lucide-react';
+import { Calendar, FileText, Clock, Upload, X } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 // Types for your data
@@ -198,9 +198,9 @@ export default function TaskList({ token }: TaskListProps) {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="w-full max-w-6xl mx-auto">
         <CardHeader>
-          <CardTitle>My Tasks</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">My Tasks</CardTitle>
         </CardHeader>
         <CardContent>
           <LoadingSpinner />
@@ -210,11 +210,11 @@ export default function TaskList({ token }: TaskListProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4">
       <Card>
         <CardHeader>
-          <CardTitle>My Tasks</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl sm:text-2xl">My Tasks</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Complete your assigned tasks and track your progress
           </CardDescription>
         </CardHeader>
@@ -227,36 +227,38 @@ export default function TaskList({ token }: TaskListProps) {
 
               return (
                 <Card key={task._id} className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{task.title}</h3>
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                          <Badge variant="outline">{task.type}</Badge>
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base sm:text-lg">{task.title}</h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-xs sm:text-sm text-gray-600">
+                          <Badge variant="outline" className="text-xs">{task.type}</Badge>
                           <div className="flex items-center">
-                            <FileText className="h-4 w-4 mr-1" />
+                            <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                             Qty: {task.quantity}
                           </div>
                           {task.deadline && (
                             <div className={`flex items-center ${overdue ? 'text-red-600' : ''}`}>
-                              <Calendar className="h-4 w-4 mr-1" />
-                              Due: {new Date(task.deadline).toLocaleDateString()}
+                              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                              <span className="whitespace-nowrap">Due: {new Date(task.deadline).toLocaleDateString()}</span>
                             </div>
                           )}
                         </div>
-                        <p className="mt-2 text-gray-700">{task.description}</p>
+                        {task.description && (
+                          <p className="mt-2 text-xs sm:text-sm text-gray-700 line-clamp-2">{task.description}</p>
+                        )}
 
                         {submission?.feedback?.text && (
-                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                            <h4 className="font-medium text-sm text-blue-900">Teacher Feedback:</h4>
-                            <p className="text-sm text-blue-800 mt-1">{submission.feedback.text}</p>
+                          <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                            <h4 className="font-medium text-xs sm:text-sm text-blue-900">Teacher Feedback:</h4>
+                            <p className="text-xs sm:text-sm text-blue-800 mt-1">{submission.feedback.text}</p>
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-col items-end space-y-2">
+                      <div className="flex flex-col items-stretch sm:items-end gap-2">
                         {submissionStatus && (
-                          <Badge className={getSubmissionBadgeColor(submissionStatus)}>
+                          <Badge className={`${getSubmissionBadgeColor(submissionStatus)} text-xs sm:text-sm`}>
                             {submissionStatus}
                           </Badge>
                         )}
@@ -270,57 +272,62 @@ export default function TaskList({ token }: TaskListProps) {
                                   setSubmissionNotes('');
                                   setUploadedFiles([]);
                                 }}
+                                className="text-xs sm:text-sm"
+                                size="sm"
                               >
                                 Submit Work
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
+                            <DialogContent className="max-w-2xl mx-2 sm:mx-0">
                               <DialogHeader>
-                                <DialogTitle>Submit Task: {task.title}</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="text-lg sm:text-xl">Submit Task: {task.title}</DialogTitle>
+                                <DialogDescription className="text-sm sm:text-base">
                                   Upload your work and add notes for this task
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4">
                                 <div>
-                                  <Label htmlFor="files">Upload Files</Label>
-                                  <Input
-                                    id="files"
-                                    type="file"
-                                    multiple
-                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp3,.wav"
-                                    onChange={handleFileUpload}
-                                    className="mt-1"
-                                    disabled={isUploading}
-                                  />
+                                  <Label htmlFor="files" className="text-sm sm:text-base">Upload Files</Label>
+                                  <div className="relative mt-1">
+                                    <Input
+                                      id="files"
+                                      type="file"
+                                      multiple
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp3,.wav"
+                                      onChange={handleFileUpload}
+                                      className="text-xs sm:text-sm"
+                                      disabled={isUploading}
+                                    />
+                                  </div>
                                   <p className="text-xs text-gray-500 mt-1">
                                     Supported: Images, Audio, PDF, Word documents
                                   </p>
                                   {isUploading && (
                                     <div className="flex items-center mt-2">
                                       <LoadingSpinner size="sm" />
-                                      <span className="ml-2 text-sm">Uploading...</span>
+                                      <span className="ml-2 text-xs sm:text-sm">Uploading...</span>
                                     </div>
                                   )}
                                 </div>
 
                                 {uploadedFiles.length > 0 && (
                                   <div>
-                                    <Label className="text-sm font-medium">Uploaded Files:</Label>
+                                    <Label className="text-xs sm:text-sm font-medium">Uploaded Files:</Label>
                                     <div className="mt-2 space-y-2">
                                       {uploadedFiles.map((file, index) => (
                                         <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                          <div className="flex items-center">
-                                            <FileText className="h-4 w-4 mr-2" />
-                                            <span className="text-sm">{file.originalName}</span>
+                                          <div className="flex items-center min-w-0">
+                                            <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                                            <span className="text-xs sm:text-sm truncate">{file.originalName}</span>
                                           </div>
                                           <Button
                                             type="button"
                                             variant="outline"
                                             size="sm"
                                             onClick={() => removeFile(index)}
+                                            className="h-6 w-6 p-0 ml-2 flex-shrink-0"
                                           >
-                                            Remove
+                                            <X className="h-3 w-3" />
                                           </Button>
                                         </div>
                                       ))}
@@ -329,27 +336,28 @@ export default function TaskList({ token }: TaskListProps) {
                                 )}
 
                                 <div>
-                                  <Label htmlFor="notes">Notes (Optional)</Label>
+                                  <Label htmlFor="notes" className="text-sm sm:text-base">Notes (Optional)</Label>
                                   <Textarea
                                     id="notes"
                                     value={submissionNotes}
                                     onChange={(e) => setSubmissionNotes(e.target.value)}
                                     placeholder="Add any notes about your submission..."
-                                    className="mt-1"
+                                    className="mt-1 text-xs sm:text-sm"
                                     rows={3}
                                   />
                                 </div>
 
                                 <Button
                                   onClick={() => selectedTask && handleSubmission(selectedTask._id)}
-                                  className="w-full"
+                                  className="w-full text-xs sm:text-sm"
                                   disabled={isSubmitting || uploadedFiles.length === 0}
+                                  size="sm"
                                 >
                                   {isSubmitting ? (
                                     <LoadingSpinner size="sm" />
                                   ) : (
                                     <>
-                                      <Upload className="h-4 w-4 mr-2" />
+                                      <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                                       Submit Task
                                     </>
                                   )}
@@ -366,8 +374,8 @@ export default function TaskList({ token }: TaskListProps) {
             })}
             {tasks.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-4" />
-                <p>No tasks assigned yet</p>
+                <Clock className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4" />
+                <p className="text-sm sm:text-base">No tasks assigned yet</p>
               </div>
             )}
           </div>

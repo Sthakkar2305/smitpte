@@ -113,10 +113,10 @@ export default function Home() {
       );
     }
     if (user?.role === 'admin') {
-      // Admin dashboard (same as old working code)
+      // Admin dashboard
       return (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
               <h3 className="text-lg font-semibold">Total Students</h3>
               <p className="text-3xl font-bold mt-2">{dashboardStats.totalStudents || 0}</p>
@@ -130,7 +130,7 @@ export default function Home() {
               <p className="text-3xl font-bold mt-2">{dashboardStats.pendingReviews || 0}</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
               <h3 className="text-lg font-semibold">Total Submissions</h3>
               <p className="text-3xl font-bold mt-2">{dashboardStats.totalSubmissions || 0}</p>
@@ -147,10 +147,10 @@ export default function Home() {
         </div>
       );
     } else {
-      // Student dashboard (same as old code)
+      // Student dashboard
       return (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
               <h3 className="text-lg font-semibold">Assigned Tasks</h3>
               <p className="text-3xl font-bold mt-2">{dashboardStats.assignedTasks || 0}</p>
@@ -225,19 +225,22 @@ export default function Home() {
   // Main app layout
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Sidebar (responsive, fixed on mobile, collapsible on desktop) */}
       <Sidebar
         user={user}
         activeView={activeView}
         onViewChange={setActiveView}
         onLogout={handleLogout}
       />
-      <main className="flex-1 overflow-auto">
-        <div className="p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               Welcome back, {user.name}!
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm sm:text-base">
               {user.role === 'admin'
                 ? 'Manage your students and track their progress'
                 : 'Continue your PTE preparation journey'}
