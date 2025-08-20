@@ -5,16 +5,6 @@ import { verifyToken, getTokenFromHeaders } from '@/utils/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ message: 'No token provided' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-    }
-
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -24,11 +14,7 @@ export async function POST(request: NextRequest) {
 
     // Create uploads directory if it doesn't exist
     const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch {
-      // Directory might already exist
-    }
+    await mkdir(uploadsDir, { recursive: true });
 
     // Generate unique filename
     const timestamp = Date.now();
