@@ -12,7 +12,7 @@ interface DecodedToken {
 }
 
 interface RouteContext {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export async function PUT(
@@ -32,7 +32,7 @@ export async function PUT(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    const { id } = await context.params;
+    const { id } = context.params;
     if (!id) {
       return NextResponse.json({ message: 'Task ID is required' }, { status: 400 });
     }
@@ -94,7 +94,7 @@ export async function DELETE(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    const { id } = await context.params;
+    const { id } = context.params;
     if (!id) return NextResponse.json({ message: 'Task ID is required' }, { status: 400 });
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
