@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Submission from "@/models/Submission";
-import Task from "@/models/Task";       // 👈 ensure schema registered
-import User from "@/models/User";       // 👈 ensure schema registered
+import Task from "@/models/Task";
+import User from "@/models/User";
 import { verifyToken, getTokenFromHeaders } from "@/utils/auth";
 
 export async function GET(request: Request) {
@@ -51,6 +51,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Task ID is required" }, { status: 400 });
     }
 
+    // Check if task exists
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return NextResponse.json({ message: "Task not found" }, { status: 404 });
+    }
+
     const submission = new Submission({
       task: taskId,
       student: decoded.userId,
@@ -59,6 +65,8 @@ export async function POST(request: Request) {
     });
 
     await submission.save();
+    
+    // Populate the task field before returning
     await submission.populate("task", "title type");
 
     return NextResponse.json(submission, { status: 201 });

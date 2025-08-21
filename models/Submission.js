@@ -12,11 +12,9 @@ const submissionSchema = new mongoose.Schema({
     required: true
   },
   files: [{
-    filename: String,
     originalName: String,
-    path: String,
-    fileType: String,
-    size: Number
+    url: String,
+    publicId: String
   }],
   notes: {
     type: String
@@ -40,4 +38,5 @@ const submissionSchema = new mongoose.Schema({
   }
 });
 
+// Ensure the model is registered
 export default mongoose.models.Submission || mongoose.model('Submission', submissionSchema);

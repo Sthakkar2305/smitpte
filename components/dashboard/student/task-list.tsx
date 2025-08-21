@@ -27,7 +27,8 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 // Types for your data
 interface FileItem {
   originalName: string;
-  url: string; // ✅ added url to match Cloudinary response
+  url: string;
+  publicId?: string;
 }
 
 interface Feedback {
@@ -109,43 +110,38 @@ export default function TaskList({ token }: TaskListProps) {
 
     setIsUploading(true);
 
-    const uploadPromises = Array.from(files).map(async (file) => {
-      const formData = new FormData();
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
       formData.append("file", file);
-
-      try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-        if (response.ok) {
-          const result = await response.json();
-          // ✅ ensure consistent shape
-          return {
-            originalName: file.name,
-            url: result.url,
-          } as FileItem;
-        }
-      } catch (error) {
-        console.error("Upload error:", error);
-      }
-      return null;
     });
 
-    const results = await Promise.all(uploadPromises);
-    const successfulUploads = results.filter(
-      (result): result is FileItem => result !== null
-    );
-
-    // ✅ fix: always merge previous + new uploads
-    setUploadedFiles((prev) => [...prev, ...successfulUploads]);
-    setIsUploading(false);
-
-    // ✅ reset input value so user can select the same file again if needed
-    e.target.value = "";
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        // ✅ ensure consistent shape
+        const newFiles = result.map((file: any) => ({
+          originalName: file.originalName,
+          url: file.url,
+          publicId: file.publicId,
+        }));
+        
+        setUploadedFiles((prev) => [...prev, ...newFiles]);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+    } finally {
+      setIsUploading(false);
+      // ✅ reset input value so user can select the same file again if needed
+      e.target.value = "";
+    }
   };
 
   const handleSubmission = async (taskId: string) => {
@@ -423,7 +419,7 @@ export default function TaskList({ token }: TaskListProps) {
                                   className="w-full text-xs sm:text-sm"
                                   disabled={
                                     isSubmitting || uploadedFiles.length === 0
-                                  } // ✅ removed "notes required" condition
+                                  }
                                   size="sm"
                                 >
                                   {isSubmitting ? (

@@ -47,11 +47,8 @@ interface Submission {
   };
   notes?: string;
   files?: {
-    filename?: string;
     originalName: string;
-    // Some historical records may use `path`; new uploads use `url`
-    path?: string;
-    url?: string;
+    url: string;
   }[];
 }
 

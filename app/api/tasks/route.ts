@@ -1,18 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { JwtPayload } from 'jsonwebtoken';
 import connectDB from '@/lib/db';
-import Task from '@/models/Task';
-import User from '@/models/User';
+import Submission from '@/models/Submission';
 import { verifyToken, getTokenFromHeaders } from '@/utils/auth';
-import mongoose from 'mongoose';
+import Task from "@/models/Task";
+import User from "@/models/User";
 
-interface DecodedToken {
-  userId: string;
-  role: string;
-  iat?: number;
-  exp?: number;
-}
-
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     await connectDB();
 
@@ -21,85 +15,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ message: 'No token provided' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded || typeof decoded === 'string') {
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-    }
-
-    let tasks;
-    if ((decoded as DecodedToken).role === 'admin') {
-      tasks = await Task.find({ isActive: true })
-        .populate('assignedTo', 'name email')
-        .populate('createdBy', 'name')
-        .sort({ createdAt: -1 });
-    } else {
-      tasks = await Task.find({
-        $or: [
-          { assignedTo: (decoded as DecodedToken).userId },
-          { assignedTo: { $size: 0 } }
-        ],
-        isActive: true
-      })
-        .populate('createdBy', 'name')
-        .sort({ createdAt: -1 });
-    }
-
-    return NextResponse.json(tasks);
-
-  } catch (error) {
-    console.error('Get tasks error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  try {
-    await connectDB();
-
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json({ message: 'No token provided' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || typeof decoded === 'string' || (decoded as DecodedToken).role !== 'admin') {
+    const decoded = verifyToken(token) as JwtPayload | string;
+    if (typeof decoded === 'string' || !decoded.role || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
 
-    const { title, type, description, quantity, deadline, assignedTo, assignToAll } = await request.json();
+    const { id } = params;
+    const { status, feedbackText } = await request.json();
 
-    if (!title || !type || !description) {
-      return NextResponse.json({ message: 'Title, type, and description are required' }, { status: 400 });
+    const submission = await Submission.findByIdAndUpdate(
+      id,
+      {
+        status,
+        feedback: {
+          text: feedbackText,
+          reviewedBy: decoded.userId,
+          reviewedAt: new Date(),
+        },
+      },
+      { new: true }
+    )
+      .populate('task', 'title type')
+      .populate('student', 'name email')
+      .populate('feedback.reviewedBy', 'name');
+
+    if (!submission) {
+      return NextResponse.json({ message: 'Submission not found' }, { status: 404 });
     }
 
-    let finalAssignedTo: string[] = [];
-    if (assignToAll) {
-      finalAssignedTo = [];
-    } else if (assignedTo && assignedTo.length > 0) {
-      finalAssignedTo = assignedTo;
-    } else {
-      finalAssignedTo = [];
-    }
-
-    const task = new Task({
-      title,
-      type,
-      description,
-      quantity: quantity || 1,
-      deadline: deadline ? new Date(deadline) : null,
-      assignedTo: finalAssignedTo,
-      createdBy: (decoded as DecodedToken).userId,
-      isActive: true
-    });
-
-    await task.save();
-    await task.populate('assignedTo', 'name email');
-    await task.populate('createdBy', 'name');
-
-    return NextResponse.json(task, { status: 201 });
-
+    return NextResponse.json(submission);
   } catch (error) {
-    console.error('Create task error:', error);
+    console.error('Update submission error:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }
