@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { filename: string } }
 ) {
   const { filename } = params;
-  const uploadsDir = path.join(process.cwd(), 'uploads'); // Look in project uploads folder
+  const uploadsDir = "/tmp"; // Look in project uploads folder
   const filePath = path.join(uploadsDir, filename);
 
   try {

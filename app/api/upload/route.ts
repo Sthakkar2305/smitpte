@@ -1,8 +1,13 @@
 // app/api/upload/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 import { verifyToken } from '@/utils/auth';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,50 +24,36 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    
+
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    // Convert to buffer for Cloudinary upload
     const bytes = await file.arrayBuffer();
-    
-    // Convert ArrayBuffer to Uint8Array
-    const buffer = new Uint8Array(bytes);
-    
-    // Ensure uploads directory exists
-    const uploadsDir = "/tmp";;
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch (err) {
-      console.error('Error creating uploads directory:', err);
-    }
+    const buffer = Buffer.from(bytes);
 
-    // Create a unique filename with timestamp
-    const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop() || '';
-    const baseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
-    const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9]/g, '_');
-    const uniqueFilename = `${sanitizedBaseName}_${timestamp}.${fileExtension}`;
-    
-    const filePath = path.join(uploadsDir, uniqueFilename);
-    
-    // Write file
-    await writeFile(filePath, buffer);
-
-    // Return the file information with the correct filename
-    return NextResponse.json({
-      originalName: file.name,
-      filename: uniqueFilename, // This should not be undefined
-      url: `/api/download/${uniqueFilename}?originalName=${encodeURIComponent(file.name)}`,
-      size: file.size,
-      type: file.type
+    // Upload to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          { resource_type: 'auto' }, // auto = images, pdf, docs, etc.
+          (error, uploaded) => {
+            if (error) reject(error);
+            else resolve(uploaded);
+          }
+        )
+        .end(buffer);
     });
 
+    return NextResponse.json({
+      originalName: file.name,
+      url: (result as any).secure_url, // cloudinary hosted URL
+      size: file.size,
+      type: file.type,
+    });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

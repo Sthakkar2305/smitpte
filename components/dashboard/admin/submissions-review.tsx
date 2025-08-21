@@ -253,13 +253,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                                       </span>
                                     </div>
                                     <a
-                                      href={
-                                        file.url ||
-                                        file.path ||
-                                        (file.filename
-                                          ? `/api/download/${file.filename}`
-                                          : "#")
-                                      }
+                                      href={file.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100"
