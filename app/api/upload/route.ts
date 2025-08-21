@@ -1,7 +1,8 @@
-// app/api/upload/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { v2 as cloudinary } from 'cloudinary';
-import { verifyToken } from '@/utils/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from "cloudinary";
+import { verifyToken } from "@/utils/auth";
+
+export const runtime = "nodejs"; // ensure not edge runtime
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -11,49 +12,63 @@ cloudinary.config({
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // check auth
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
     if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    // get files from formData
     const formData = await req.formData();
-    const file = formData.get('file') as File;
+    const files = formData.getAll("file") as File[];
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    if (!files || files.length === 0) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Convert to buffer for Cloudinary upload
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const results: {
+      originalName: string;
+      url: string;
+      publicId: string;
+    }[] = [];
 
-    // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          { resource_type: 'auto' }, // auto = images, pdf, docs, etc.
-          (error, uploaded) => {
-            if (error) reject(error);
-            else resolve(uploaded);
-          }
-        )
-        .end(buffer);
-    });
+    for (const file of files) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
 
-    return NextResponse.json({
-      originalName: file.name,
-      url: (result as any).secure_url, // cloudinary hosted URL
-      size: file.size,
-      type: file.type,
-    });
+      const uploaded: UploadApiResponse = await new Promise(
+        (resolve, reject) => {
+          cloudinary.uploader
+            .upload_stream(
+              { resource_type: "auto", folder: "uploads" },
+              (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+                if (error || !result) reject(error);
+                else resolve(result);
+              }
+            )
+            .end(buffer);
+        }
+      );
+
+      results.push({
+        originalName: file.name,
+        url: uploaded.secure_url,
+        publicId: uploaded.public_id,
+      });
+    }
+
+    return NextResponse.json(results);
   } catch (error) {
-    console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Upload error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

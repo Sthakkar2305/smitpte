@@ -27,7 +27,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 // Types for your data
 interface FileItem {
   originalName: string;
-  // other file properties may come here
+  url: string; // ✅ added url to match Cloudinary response
 }
 
 interface Feedback {
@@ -108,6 +108,7 @@ export default function TaskList({ token }: TaskListProps) {
     if (!files) return;
 
     setIsUploading(true);
+
     const uploadPromises = Array.from(files).map(async (file) => {
       const formData = new FormData();
       formData.append("file", file);
@@ -121,7 +122,12 @@ export default function TaskList({ token }: TaskListProps) {
           body: formData,
         });
         if (response.ok) {
-          return await response.json();
+          const result = await response.json();
+          // ✅ ensure consistent shape
+          return {
+            originalName: file.name,
+            url: result.url,
+          } as FileItem;
         }
       } catch (error) {
         console.error("Upload error:", error);
@@ -130,12 +136,16 @@ export default function TaskList({ token }: TaskListProps) {
     });
 
     const results = await Promise.all(uploadPromises);
-    // Filter out null results and assert type
     const successfulUploads = results.filter(
       (result): result is FileItem => result !== null
     );
+
+    // ✅ fix: always merge previous + new uploads
     setUploadedFiles((prev) => [...prev, ...successfulUploads]);
     setIsUploading(false);
+
+    // ✅ reset input value so user can select the same file again if needed
+    e.target.value = "";
   };
 
   const handleSubmission = async (taskId: string) => {
@@ -362,9 +372,14 @@ export default function TaskList({ token }: TaskListProps) {
                                         >
                                           <div className="flex items-center min-w-0">
                                             <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
-                                            <span className="text-xs sm:text-sm truncate">
+                                            <a
+                                              href={file.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-xs sm:text-sm truncate text-blue-600 underline"
+                                            >
                                               {file.originalName}
-                                            </span>
+                                            </a>
                                           </div>
                                           <Button
                                             type="button"
@@ -407,10 +422,8 @@ export default function TaskList({ token }: TaskListProps) {
                                   }
                                   className="w-full text-xs sm:text-sm"
                                   disabled={
-                                    isSubmitting ||
-                                    submissionNotes.trim() === "" ||
-                                    uploadedFiles.length === 0
-                                  }
+                                    isSubmitting || uploadedFiles.length === 0
+                                  } // ✅ removed "notes required" condition
                                   size="sm"
                                 >
                                   {isSubmitting ? (
