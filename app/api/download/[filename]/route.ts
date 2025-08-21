@@ -1,64 +1,60 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/utils/auth";
-import fs from "fs";
-import path from "path";
-import mime from "mime-types";
-
-interface DecodedToken {
-  userId: string;
-  role: string;
-  iat?: number;
-  exp?: number;
-}
+// app/api/download/[filename]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import path from 'path';
+import fs from 'fs';
 
 export async function GET(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: { filename: string } }
 ) {
+  const { filename } = params;
+  console.log('Download request for filename:', filename);
+  const localUploadsDir = path.join(process.cwd(), 'uploads');
+  const tmpDir = "/tmp";
+
+  const candidatePaths = [
+    path.join(localUploadsDir, filename),
+    path.join(tmpDir, filename),
+  ];
+
+  console.log('Looking for file in paths:', candidatePaths);
+  const filePath = candidatePaths.find((p) => fs.existsSync(p));
+  console.log('Found file at:', filePath);
+
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!filePath) {
+      console.log('File not found in any location');
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token) as DecodedToken | null;
-    if (!decoded) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+    const fileStream = fs.createReadStream(filePath);
 
-    const { filename } = params;
-    const url = new URL(request.url);
-    const originalName = url.searchParams.get("originalName") || filename;
+    const url = new URL(req.url);
+    const originalName = url.searchParams.get('originalName') || filename;
 
-    if (!filename || filename.includes("..") || filename.includes("/")) {
-      return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
-    }
-
-    const uploadsDir = path.join(process.cwd(), "uploads");
-    const filePath = path.join(uploadsDir, filename);
-
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-
-    const fileBuffer = fs.readFileSync(filePath);
-    const mimeType = mime.lookup(originalName) || "application/octet-stream";
-
-    // Convert Buffer to Uint8Array
-    const uint8Array = new Uint8Array(fileBuffer);
-    
-    return new Response(uint8Array, {
-      status: 200,
-      headers: {
-        "Content-Type": mimeType,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(originalName)}"`,
-        "Content-Length": fileBuffer.length.toString(),
-      },
+    // Convert Node.js ReadStream to Web ReadableStream
+    const readableStream = new ReadableStream({
+      start(controller) {
+        fileStream.on('data', (chunk) => {
+          controller.enqueue(chunk);
+        });
+        fileStream.on('end', () => {
+          controller.close();
+        });
+        fileStream.on('error', (err) => {
+          controller.error(err);
+        });
+      }
     });
 
+    return new Response(readableStream, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `inline; filename="${originalName}"`,
+      }
+    });
   } catch (error) {
-    console.error("Download error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('Download error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
