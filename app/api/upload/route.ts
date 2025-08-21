@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const buffer = new Uint8Array(bytes);
     
     // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const uploadsDir = "/tmp";;
     try {
       await mkdir(uploadsDir, { recursive: true });
     } catch (err) {
