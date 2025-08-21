@@ -217,14 +217,6 @@ export default function TaskManager({ token }: TaskManagerProps) {
       setIsSubmitting(false);
     }
   };
-  <BulkDeleteTasks
-    tasks={tasks}
-    token={token}
-    onSuccess={() => {
-      // Refresh tasks after deletion
-      fetchTasks();
-    }}
-  />;
 
   const handleEditSubmit = async (
     e: FormEvent<HTMLFormElement>
@@ -639,6 +631,15 @@ export default function TaskManager({ token }: TaskManagerProps) {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      {/* Bulk Delete Component */}
+      <BulkDeleteTasks
+        tasks={tasks}
+        token={token}
+        onSuccess={() => {
+          fetchTasks();
+        }}
+      />
+
       <Card className="w-full overflow-hidden">
         <CardHeader className="px-4 py-5 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -158,11 +158,19 @@ const downloadFile = async (file: FileObject) => {
   try {
     let downloadUrl;
     
+    // Check if file has a direct URL (Cloudinary)
     if (file.url) {
       downloadUrl = file.url;
-    } else if (file.filename) {
+    } 
+    // Check if file has a filename for local download
+    else if (file.filename) {
       downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
-    } else {
+    } 
+    // If neither exists, try to use publicId from Cloudinary (if available)
+    else if (file.publicId) {
+      downloadUrl = `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/raw/upload/${file.publicId}`;
+    }
+    else {
       throw new Error("No valid file information available");
     }
 
@@ -176,22 +184,12 @@ const downloadFile = async (file: FileObject) => {
       throw new Error(`Download failed: ${response.statusText}`);
     }
 
-    // Get the filename from Content-Disposition header or use original name
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = file.originalName || 'download';
-    
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
-      if (filenameMatch) {
-        filename = decodeURIComponent(filenameMatch[1]);
-      }
-    }
-
+    // Handle the download
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename;
+    a.download = file.originalName || 'download';
     document.body.appendChild(a);
     a.click();
     a.remove();

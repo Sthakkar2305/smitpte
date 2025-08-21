@@ -44,16 +44,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       await Submission.deleteMany({ task: { $in: taskIds } });
     }
 
-    // Soft delete tasks (set isActive to false) or hard delete
-    // For hard delete: await Task.deleteMany({ _id: { $in: taskIds } });
-    const result = await Task.updateMany(
-      { _id: { $in: taskIds } },
-      { isActive: false }
-    );
+    // Hard delete tasks (remove from database completely)
+    const result = await Task.deleteMany({ _id: { $in: taskIds } });
 
     return NextResponse.json({ 
       message: 'Tasks deleted successfully',
-      deletedCount: result.modifiedCount,
+      deletedCount: result.deletedCount,
       deleteSubmissions
     });
 

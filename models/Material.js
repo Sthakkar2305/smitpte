@@ -26,11 +26,13 @@ const MaterialSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // In Material.js, ensure files schema captures Cloudinary data
     files: [
       {
         originalName: String,
-        filename: String,
-        url: String,
+        filename: String, // For local files
+        url: String, // For Cloudinary files
+        publicId: String, // For Cloudinary files
         size: Number,
         mimetype: String,
         uploadedAt: {
