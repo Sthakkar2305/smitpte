@@ -8,29 +8,15 @@ export async function GET(
   { params }: { params: { filename: string } }
 ) {
   const { filename } = params;
-  console.log('Download request for filename:', filename);
-  const localUploadsDir = path.join(process.cwd(), 'uploads');
-  const tmpDir = "/tmp";
-
-  const candidatePaths = [
-    path.join(localUploadsDir, filename),
-    path.join(tmpDir, filename),
-  ];
-
-  console.log('Looking for file in paths:', candidatePaths);
-  const filePath = candidatePaths.find((p) => fs.existsSync(p));
-  console.log('Found file at:', filePath);
+  const uploadsDir = path.join(process.cwd(), 'uploads'); // Look in project uploads folder
+  const filePath = path.join(uploadsDir, filename);
 
   try {
-    if (!filePath) {
-      console.log('File not found in any location');
+    if (!fs.existsSync(filePath)) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
     const fileStream = fs.createReadStream(filePath);
-
-    const url = new URL(req.url);
-    const originalName = url.searchParams.get('originalName') || filename;
 
     // Convert Node.js ReadStream to Web ReadableStream
     const readableStream = new ReadableStream({
@@ -50,7 +36,7 @@ export async function GET(
     return new Response(readableStream, {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `inline; filename="${originalName}"`,
+        'Content-Disposition': `inline; filename="${filename}"`,
       }
     });
   } catch (error) {

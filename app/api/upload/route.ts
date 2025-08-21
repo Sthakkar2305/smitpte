@@ -29,9 +29,8 @@ export async function POST(req: NextRequest) {
     // Convert ArrayBuffer to Uint8Array
     const buffer = new Uint8Array(bytes);
     
-    // Ensure uploads directory exists (prefer project uploads dir, fallback to /tmp)
-    const projectUploadsDir = path.join(process.cwd(), 'uploads');
-    const uploadsDir = projectUploadsDir;
+    // Ensure uploads directory exists
+    const uploadsDir = "/tmp";;
     try {
       await mkdir(uploadsDir, { recursive: true });
     } catch (err) {
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
     // Return the file information with the correct filename
     return NextResponse.json({
       originalName: file.name,
-      filename: uniqueFilename,
+      filename: uniqueFilename, // This should not be undefined
       url: `/api/download/${uniqueFilename}?originalName=${encodeURIComponent(file.name)}`,
       size: file.size,
       type: file.type

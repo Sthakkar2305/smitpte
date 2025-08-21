@@ -68,41 +68,6 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
 
-  const buildFileHref = (file: { url?: string; path?: string; filename?: string; originalName: string }) => {
-    if (file.url) return file.url;
-    if (file.path) {
-      try {
-        const base = file.path.split(/\\|\//).pop();
-        if (base) {
-          return `/api/download/${base}?originalName=${encodeURIComponent(file.originalName)}`;
-        }
-      } catch {}
-    }
-    if (file.filename) {
-      return `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
-    }
-    return "#";
-  };
-
-  const handleFileClick = async (file: { url?: string; path?: string; filename?: string; originalName: string }) => {
-    const href = buildFileHref(file);
-    if (href === "#") {
-      alert(`File "${file.originalName}" not found. It may have been deleted or moved.`);
-      return;
-    }
-    
-    try {
-      const response = await fetch(href);
-      if (!response.ok) {
-        alert(`File "${file.originalName}" not found. It may have been deleted or moved.`);
-        return;
-      }
-      window.open(href, '_blank');
-    } catch (error) {
-      alert(`Error accessing file "${file.originalName}". It may have been deleted or moved.`);
-    }
-  };
-
   const fetchSubmissions = async () => {
     try {
       const response = await fetch("/api/submissions", {
@@ -287,12 +252,20 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                                         {file.originalName}
                                       </span>
                                     </div>
-                                    <button
-                                      onClick={() => handleFileClick(file)}
+                                    <a
+                                      href={
+                                        file.url ||
+                                        file.path ||
+                                        (file.filename
+                                          ? `/api/download/${file.filename}`
+                                          : "#")
+                                      }
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="inline-flex items-center px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100"
                                     >
                                       View
-                                    </button>
+                                    </a>
                                   </div>
                                 ))}
                               </div>
