@@ -313,7 +313,7 @@ export default function TaskList({ token }: TaskListProps) {
                                 Submit Work
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl mx-2 sm:mx-0">
+                            <DialogContent className="max-w-2xl mx-2 sm:mx-0 max-h-[90vh] overflow-hidden flex flex-col">
                               <DialogHeader>
                                 <DialogTitle className="text-lg sm:text-xl">
                                   Submit Task: {task.title}
@@ -322,7 +322,7 @@ export default function TaskList({ token }: TaskListProps) {
                                   Upload your work and add notes for this task
                                 </DialogDescription>
                               </DialogHeader>
-                              <div className="space-y-4">
+                              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                                 <div>
                                   <Label
                                     htmlFor="files"
@@ -360,7 +360,7 @@ export default function TaskList({ token }: TaskListProps) {
                                     <Label className="text-xs sm:text-sm font-medium">
                                       Uploaded Files:
                                     </Label>
-                                    <div className="mt-2 space-y-2">
+                                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
                                       {uploadedFiles.map((file, index) => (
                                         <div
                                           key={index}
@@ -410,7 +410,8 @@ export default function TaskList({ token }: TaskListProps) {
                                     rows={3}
                                   />
                                 </div>
-
+                              </div>
+                              <div className="pt-4 border-t">
                                 <Button
                                   onClick={() =>
                                     selectedTask &&

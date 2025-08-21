@@ -29,14 +29,16 @@ import {
 } from "@/components/ui/table";
 import { Eye, CheckCircle, XCircle, FileText } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { BulkDeleteSubmissions } from "@/components/dashboard/admin/bulk-delete-submissions";
 
+// Update the interface to match what BulkDeleteSubmissions expects
 interface Submission {
   _id: string;
   student?: {
-    name?: string;
+    name: string; // Changed from name?: string to name: string
   };
   task?: {
-    title?: string;
+    title: string; // Changed from title?: string to title: string
     description?: string;
     type?: string;
   };
@@ -152,6 +154,14 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
             <LoadingSpinner />
           ) : (
             <>
+              <BulkDeleteSubmissions
+                submissions={submissions}
+                token={token}
+                onSuccess={() => {
+                  // Refresh submissions after deletion
+                  fetchSubmissions();
+                }}
+              />
               <Table>
                 <TableHeader>
                   <TableRow>

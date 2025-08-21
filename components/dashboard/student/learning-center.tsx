@@ -153,42 +153,54 @@ export default function LearningCenter({ token }: LearningCenterProps) {
     }
   };
 
-  const downloadFile = async (file: FileObject) => {
-    try {
-      let downloadUrl;
-      
-      if (file.url) {
-        downloadUrl = file.url;
-      } else if (file.filename) {
-        downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
-      } else {
-        throw new Error("No valid file information available");
-      }
-
-      const response = await fetch(downloadUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.originalName || "download";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download failed", err);
-      alert("Download failed. Please try again.");
+  // In learning-center.tsx
+const downloadFile = async (file: FileObject) => {
+  try {
+    let downloadUrl;
+    
+    if (file.url) {
+      downloadUrl = file.url;
+    } else if (file.filename) {
+      downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
+    } else {
+      throw new Error("No valid file information available");
     }
-  };
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.statusText}`);
+    }
+
+    // Get the filename from Content-Disposition header or use original name
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = file.originalName || 'download';
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (filenameMatch) {
+        filename = decodeURIComponent(filenameMatch[1]);
+      }
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Download failed", err);
+    alert("Download failed. Please try again.");
+  }
+};
 
   useEffect(() => {
     if (token) {
