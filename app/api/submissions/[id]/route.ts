@@ -3,6 +3,9 @@ import { JwtPayload } from 'jsonwebtoken';
 import connectDB from '@/lib/db';
 import Submission from '@/models/Submission';
 import { verifyToken, getTokenFromHeaders } from '@/utils/auth';
+import Task from "@/models/Task";
+import User from "@/models/User";
+
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
