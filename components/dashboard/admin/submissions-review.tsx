@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -20,14 +26,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Eye, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
-import LoadingSpinner from '@/components/ui/loading-spinner';
+} from "@/components/ui/table";
+import { Eye, CheckCircle, XCircle, FileText, Download } from "lucide-react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 // ---- Define Types ----
 interface SubmissionFile {
   originalName: string;
-  path: string;
+  filename: string;
   [key: string]: any;
 }
 interface SubmissionFeedback {
@@ -58,15 +64,16 @@ interface SubmissionsReviewProps {
 export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  const [feedback, setFeedback] = useState('');
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<Submission | null>(null);
+  const [feedback, setFeedback] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchSubmissions = async () => {
     try {
-      const response = await fetch('/api/submissions', {
+      const response = await fetch("/api/submissions", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -74,33 +81,62 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
         setSubmissions(data);
       }
     } catch (error) {
-      console.error('Error fetching submissions:', error);
+      console.error("Error fetching submissions:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateSubmissionStatus = async (submissionId: string, status: string, feedbackText: string) => {
+  const downloadFile = async (fileName: string) => {
+    try {
+      const response = await fetch(
+        `/api/download/download?fileName=${fileName}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (error) {
+      console.error("Error downloading file:", error);
+    }
+  };
+
+  const updateSubmissionStatus = async (
+    submissionId: string,
+    status: string,
+    feedbackText: string
+  ) => {
     setIsUpdating(true);
     try {
       const response = await fetch(`/api/submissions/${submissionId}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           status,
-          feedbackText
+          feedbackText,
         }),
       });
       if (response.ok) {
         fetchSubmissions();
         setSelectedSubmission(null);
-        setFeedback('');
+        setFeedback("");
       }
     } catch (error) {
-      console.error('Error updating submission:', error);
+      console.error("Error updating submission:", error);
     } finally {
       setIsUpdating(false);
     }
@@ -108,14 +144,14 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
+      case "approved":
+        return "bg-green-100 text-green-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -123,12 +159,15 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
     fetchSubmissions();
     // eslint-disable-next-line
   }, []);
+  console.log("Submissions:", submissions);
 
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card className="w-full overflow-hidden">
         <CardHeader className="px-4 py-5 sm:px-6">
-          <CardTitle className="text-xl sm:text-2xl">Submissions Review</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">
+            Submissions Review
+          </CardTitle>
           <CardDescription className="text-sm sm:text-base">
             Review and provide feedback on student submissions
           </CardDescription>
@@ -150,26 +189,36 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                       <TableHead className="w-[15%]">Type</TableHead>
                       <TableHead className="w-[15%]">Status</TableHead>
                       <TableHead className="w-[15%]">Submitted</TableHead>
-                      <TableHead className="w-[20%] text-right">Actions</TableHead>
+                      <TableHead className="w-[20%] text-right">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {submissions.map((submission) => (
                       <TableRow key={submission._id}>
                         <TableCell className="font-medium">
-                          {submission.student?.name || 'Unknown Student'}
+                          {submission.student?.name || "Unknown Student"}
                         </TableCell>
-                        <TableCell className="truncate max-w-[200px]">{submission.task?.title || 'Unknown Task'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{submission.task?.type || 'Unknown'}</Badge>
+                        <TableCell className="truncate max-w-[200px]">
+                          {submission.task?.title || "Unknown Task"}
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusBadgeColor(submission.status)}>
+                          <Badge variant="outline">
+                            {submission.task?.type || "Unknown"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={getStatusBadgeColor(submission.status)}
+                          >
                             {submission.status}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(submission.submittedAt).toLocaleDateString()}
+                          {new Date(
+                            submission.submittedAt
+                          ).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
                           <Dialog>
@@ -179,7 +228,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                                 size="sm"
                                 onClick={() => {
                                   setSelectedSubmission(submission);
-                                  setFeedback(submission.feedback?.text || '');
+                                  setFeedback(submission.feedback?.text || "");
                                 }}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
@@ -190,48 +239,73 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                               <DialogHeader>
                                 <DialogTitle>Review Submission</DialogTitle>
                                 <DialogDescription>
-                                  Task: {submission.task?.title} by {submission.student?.name}
+                                  Task: {submission.task?.title} by{" "}
+                                  {submission.student?.name}
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4">
                                 <div>
-                                  <h4 className="font-medium mb-2">Task Details:</h4>
-                                  <p className="text-sm text-gray-600">{submission.task?.description}</p>
+                                  <h4 className="font-medium mb-2">
+                                    Task Details:
+                                  </h4>
+                                  <p className="text-sm text-gray-600">
+                                    {submission.task?.description}
+                                  </p>
                                 </div>
 
                                 {submission.notes && (
                                   <div>
-                                    <h4 className="font-medium mb-2">Student Notes:</h4>
-                                    <p className="text-sm bg-gray-50 p-3 rounded">{submission.notes}</p>
+                                    <h4 className="font-medium mb-2">
+                                      Student Notes:
+                                    </h4>
+                                    <p className="text-sm bg-gray-50 p-3 rounded">
+                                      {submission.notes}
+                                    </p>
                                   </div>
                                 )}
 
-                                {submission.files && submission.files.length > 0 && (
-                                  <div>
-                                    <h4 className="font-medium mb-2">Submitted Files:</h4>
-                                    <div className="space-y-2">
-                                      {submission.files.map((file, index) => (
-                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                          <div className="flex items-center">
-                                            <FileText className="h-4 w-4 mr-2" />
-                                            <span className="text-sm truncate max-w-[200px]">{file.originalName}</span>
+                                {submission.files &&
+                                  submission.files.length > 0 && (
+                                    <div>
+                                      <h4 className="font-medium mb-2">
+                                        Submitted Files:
+                                      </h4>
+                                      <div className="space-y-2">
+                                        {submission.files.map((file, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex items-center justify-between bg-gray-50 p-2 rounded"
+                                          >
+                                            <div className="flex items-center">
+                                              <FileText className="h-4 w-4 mr-2" />
+                                              <span className="text-sm truncate max-w-[200px]">
+                                                {file.originalName}
+                                              </span>
+                                            </div>
+                                            <Button variant="outline" size="sm">
+                                              <a
+                                                href={file.filename}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                              >
+                                                <Download className="h-4 w-4" />
+                                              </a>
+                                            </Button>
                                           </div>
-                                          <Button variant="outline" size="sm" asChild>
-                                            <a href={file.path} target="_blank" rel="noopener noreferrer">
-                                              <Download className="h-4 w-4" />
-                                            </a>
-                                          </Button>
-                                        </div>
-                                      ))}
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
 
                                 <div>
-                                  <h4 className="font-medium mb-2">Feedback:</h4>
+                                  <h4 className="font-medium mb-2">
+                                    Feedback:
+                                  </h4>
                                   <Textarea
                                     value={feedback}
-                                    onChange={(e) => setFeedback(e.target.value)}
+                                    onChange={(e) =>
+                                      setFeedback(e.target.value)
+                                    }
                                     placeholder="Provide feedback to the student..."
                                     rows={4}
                                   />
@@ -239,11 +313,20 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
 
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <Button
-                                    onClick={() => selectedSubmission && updateSubmissionStatus(selectedSubmission._id, 'approved', feedback)}
+                                    onClick={() =>
+                                      selectedSubmission &&
+                                      updateSubmissionStatus(
+                                        selectedSubmission._id,
+                                        "approved",
+                                        feedback
+                                      )
+                                    }
                                     disabled={isUpdating}
                                     className="flex-1"
                                   >
-                                    {isUpdating ? <LoadingSpinner size="sm" /> : (
+                                    {isUpdating ? (
+                                      <LoadingSpinner size="sm" />
+                                    ) : (
                                       <>
                                         <CheckCircle className="h-4 w-4 mr-2" />
                                         Approve
@@ -252,11 +335,20 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                                   </Button>
                                   <Button
                                     variant="destructive"
-                                    onClick={() => selectedSubmission && updateSubmissionStatus(selectedSubmission._id, 'rejected', feedback)}
+                                    onClick={() =>
+                                      selectedSubmission &&
+                                      updateSubmissionStatus(
+                                        selectedSubmission._id,
+                                        "rejected",
+                                        feedback
+                                      )
+                                    }
                                     disabled={isUpdating}
                                     className="flex-1"
                                   >
-                                    {isUpdating ? <LoadingSpinner size="sm" /> : (
+                                    {isUpdating ? (
+                                      <LoadingSpinner size="sm" />
+                                    ) : (
                                       <>
                                         <XCircle className="h-4 w-4 mr-2" />
                                         Reject
@@ -281,21 +373,27 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-lg">
-                          {submission.student?.name || 'Unknown Student'}
+                          {submission.student?.name || "Unknown Student"}
                         </CardTitle>
-                        <Badge className={getStatusBadgeColor(submission.status)}>
+                        <Badge
+                          className={getStatusBadgeColor(submission.status)}
+                        >
                           {submission.status}
                         </Badge>
                       </div>
                       <CardDescription>
-                        {submission.task?.title || 'Unknown Task'}
+                        {submission.task?.title || "Unknown Task"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pb-3">
                       <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge variant="outline">{submission.task?.type || 'Unknown'}</Badge>
+                        <Badge variant="outline">
+                          {submission.task?.type || "Unknown"}
+                        </Badge>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(submission.submittedAt).toLocaleDateString()}
+                          {new Date(
+                            submission.submittedAt
+                          ).toLocaleDateString()}
                         </span>
                       </div>
                       <Dialog>
@@ -306,7 +404,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                             className="w-full"
                             onClick={() => {
                               setSelectedSubmission(submission);
-                              setFeedback(submission.feedback?.text || '');
+                              setFeedback(submission.feedback?.text || "");
                             }}
                           >
                             <Eye className="h-4 w-4 mr-1" />
@@ -317,42 +415,67 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                           <DialogHeader>
                             <DialogTitle>Review Submission</DialogTitle>
                             <DialogDescription>
-                              Task: {submission.task?.title} by {submission.student?.name}
+                              Task: {submission.task?.title} by{" "}
+                              {submission.student?.name}
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
                             <div>
-                              <h4 className="font-medium mb-2">Task Details:</h4>
-                              <p className="text-sm text-gray-600">{submission.task?.description}</p>
+                              <h4 className="font-medium mb-2">
+                                Task Details:
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {submission.task?.description}
+                              </p>
                             </div>
 
                             {submission.notes && (
                               <div>
-                                <h4 className="font-medium mb-2">Student Notes:</h4>
-                                <p className="text-sm bg-gray-50 p-3 rounded">{submission.notes}</p>
+                                <h4 className="font-medium mb-2">
+                                  Student Notes:
+                                </h4>
+                                <p className="text-sm bg-gray-50 p-3 rounded">
+                                  {submission.notes}
+                                </p>
                               </div>
                             )}
 
-                            {submission.files && submission.files.length > 0 && (
-                              <div>
-                                <h4 className="font-medium mb-2">Submitted Files:</h4>
-                                <div className="space-y-2">
-                                  {submission.files.map((file, index) => (
-                                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                      <div className="flex items-center">
-                                        <FileText className="h-4 w-4 mr-2" />
-                                        <span className="text-sm truncate max-w-[150px]">{file.originalName}</span>
+                            {submission.files &&
+                              submission.files.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium mb-2">
+                                    Submitted Files:
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {submission.files.map((file, index) => (
+                                      <div
+                                        key={index}
+                                        className="flex items-center justify-between bg-gray-50 p-2 rounded"
+                                      >
+                                        <div className="flex items-center">
+                                          <FileText className="h-4 w-4 mr-2" />
+                                          <span className="text-sm truncate max-w-[150px]">
+                                            {file.originalName}
+                                          </span>
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          asChild
+                                        >
+                                          <a
+                                            href={file.path}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </a>
+                                        </Button>
                                       </div>
-                                      <Button variant="outline" size="sm" asChild>
-                                        <a href={file.path} target="_blank" rel="noopener noreferrer">
-                                          <Download className="h-4 w-4" />
-                                        </a>
-                                      </Button>
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
                             <div>
                               <h4 className="font-medium mb-2">Feedback:</h4>
@@ -366,11 +489,20 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
 
                             <div className="flex flex-col gap-2">
                               <Button
-                                onClick={() => selectedSubmission && updateSubmissionStatus(selectedSubmission._id, 'approved', feedback)}
+                                onClick={() =>
+                                  selectedSubmission &&
+                                  updateSubmissionStatus(
+                                    selectedSubmission._id,
+                                    "approved",
+                                    feedback
+                                  )
+                                }
                                 disabled={isUpdating}
                                 className="flex-1"
                               >
-                                {isUpdating ? <LoadingSpinner size="sm" /> : (
+                                {isUpdating ? (
+                                  <LoadingSpinner size="sm" />
+                                ) : (
                                   <>
                                     <CheckCircle className="h-4 w-4 mr-2" />
                                     Approve
@@ -379,11 +511,20 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                               </Button>
                               <Button
                                 variant="destructive"
-                                onClick={() => selectedSubmission && updateSubmissionStatus(selectedSubmission._id, 'rejected', feedback)}
+                                onClick={() =>
+                                  selectedSubmission &&
+                                  updateSubmissionStatus(
+                                    selectedSubmission._id,
+                                    "rejected",
+                                    feedback
+                                  )
+                                }
                                 disabled={isUpdating}
                                 className="flex-1"
                               >
-                                {isUpdating ? <LoadingSpinner size="sm" /> : (
+                                {isUpdating ? (
+                                  <LoadingSpinner size="sm" />
+                                ) : (
                                   <>
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Reject

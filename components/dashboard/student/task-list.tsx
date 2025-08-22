@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar, FileText, Clock, Upload, X } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { UploadButton } from "@/utils/uploadthing";
 
 // Types for your data
 interface FileItem {
@@ -166,6 +167,14 @@ export default function TaskList({ token }: TaskListProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleUploadComplete = (res: { url: string; name: string }[]) => {
+    const uploaded = res.map((f) => ({
+      originalName: f.name,
+      filename: f.url,
+    }));
+    setUploadedFiles((prev) => [...prev, ...uploaded]);
   };
 
   const getSubmissionStatus = (taskId: string): SubmissionStatus => {
@@ -325,14 +334,17 @@ export default function TaskList({ token }: TaskListProps) {
                                     Upload Files
                                   </Label>
                                   <div className="relative mt-1">
-                                    <Input
-                                      id="files"
-                                      type="file"
-                                      multiple
-                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp3,.wav"
-                                      onChange={handleFileUpload}
-                                      className="text-xs sm:text-sm"
-                                      disabled={isUploading}
+                                    <UploadButton
+                                      endpoint="imageUploader"
+                                      appearance={{
+                                        button: "text-black",
+                                      }}
+                                      onClientUploadComplete={
+                                        handleUploadComplete
+                                      }
+                                      onUploadError={(error) => {
+                                        console.error("Upload error:", error);
+                                      }}
                                     />
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1">
