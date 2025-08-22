@@ -102,7 +102,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
         },
         body: JSON.stringify({
           status,
-          feedback: feedbackText,
+          feedbackText,
         }),
       });
 

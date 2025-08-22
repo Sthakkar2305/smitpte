@@ -378,19 +378,19 @@ export default function TaskList({ token }: TaskListProps) {
                                     <Label className="text-xs sm:text-sm font-medium">
                                       Uploaded Files:
                                     </Label>
-                                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                                    <div className="mt-2 space-y-2 max-h-40 overflow-auto">
                                       {uploadedFiles.map((file, index) => (
                                         <div
                                           key={index}
                                           className="flex items-center justify-between bg-gray-50 p-2 rounded"
                                         >
-                                          <div className="flex items-center min-w-0">
+                                          <div className="flex items-center min-w-0 overflow-auto">
                                             <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
                                             <a
                                               href={file.url}
                                               target="_blank"
                                               rel="noopener noreferrer"
-                                              className="text-xs sm:text-sm truncate text-blue-600 underline"
+                                              className="text-xs sm:text-sm text-blue-600 underline whitespace-nowrap"
                                             >
                                               {file.originalName}
                                             </a>

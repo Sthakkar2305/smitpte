@@ -4,8 +4,9 @@ import path from 'path';
 import fs from 'fs';
 import { promises as fsp } from 'fs';
 
-// Define the uploads directory - make sure this matches where files are stored
-const UPLOADS_DIR =  "/tmp";
+// Define the uploads directory - use project uploads first, fallback to tmp
+const PROJECT_UPLOADS_DIR = path.join(process.cwd(), 'project', 'uploads');
+const FALLBACK_UPLOADS_DIR = '/tmp';
 
 export async function GET(
   req: NextRequest,
@@ -14,15 +15,22 @@ export async function GET(
   const { filename } = params;
   
   try {
-    // Ensure the uploads directory exists
-    await fsp.mkdir(UPLOADS_DIR, { recursive: true });
-    
-    const filePath = path.join(UPLOADS_DIR, filename);
+    // Try project uploads dir first, else fallback
+    const candidatePaths = [
+      path.join(PROJECT_UPLOADS_DIR, filename),
+      path.join(FALLBACK_UPLOADS_DIR, filename),
+    ];
 
-    // Check if file exists
-    try {
-      await fsp.access(filePath);
-    } catch {
+    let filePath: string | null = null;
+    for (const p of candidatePaths) {
+      try {
+        await fsp.access(p);
+        filePath = p;
+        break;
+      } catch {}
+    }
+
+    if (!filePath) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
