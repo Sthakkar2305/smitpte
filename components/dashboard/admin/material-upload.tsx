@@ -133,21 +133,24 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           body: formData,
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          // Return a consistent FileData object
-          return {
-            originalName:
-              result.originalName || result.originalname || file.name,
-            originalname:
-              result.originalName || result.originalname || file.name,
-            filename: result.filename || result.publicId || file.name,
-            url: result.url,
-            publicId: result.publicId,
-            size: result.size,
-            mimetype: result.mimetype,
-          };
-        } else {
+       if (response.ok) {
+          const resultData = await response.json();
+          const uploadedFile = resultData[0]; // Get the first (and only) file object from the array
+
+          if (uploadedFile) {
+            // Return a consistent FileData object
+            return {
+              originalName:
+                uploadedFile.originalName || uploadedFile.originalname || file.name,
+              originalname:
+                uploadedFile.originalName || uploadedFile.originalname || file.name,
+              filename: uploadedFile.filename || uploadedFile.publicId || file.name,
+              url: uploadedFile.url,
+              publicId: uploadedFile.publicId,
+              size: uploadedFile.size,
+              mimetype: uploadedFile.mimetype,
+            };
+          }} else {
           console.error("Upload failed:", await response.text());
         }
       } catch (error) {
