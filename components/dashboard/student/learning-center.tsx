@@ -156,44 +156,34 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   // In learning-center.tsx
 const downloadFile = async (file: FileObject) => {
   try {
-    let downloadUrl;
+    // If file has a Cloudinary URL, open it directly
+    if (file.url && (file.url.includes('cloudinary') || file.url.startsWith('http'))) {
+      window.open(file.url, '_blank');
+      return;
+    }
     
-    // Check if file has a direct URL (Cloudinary)
-    if (file.url) {
-      downloadUrl = file.url;
-    } 
-    // Check if file has a filename for local download
-    else if (file.filename) {
-      downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
-    } 
-    // If neither exists, try to use publicId from Cloudinary (if available)
-    else if (file.publicId) {
-      downloadUrl = `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/raw/upload/${file.publicId}`;
+    // For local files
+    if (file.filename) {
+      const downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
+      const response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.originalName || 'download';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return;
     }
-    else {
-      throw new Error("No valid file information available");
-    }
-
-    const response = await fetch(downloadUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.statusText}`);
-    }
-
-    // Handle the download
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.originalName || 'download';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    
+    throw new Error("No valid file information available");
   } catch (err) {
     console.error("Download failed", err);
     alert("Download failed. Please try again.");
