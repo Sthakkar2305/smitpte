@@ -156,13 +156,15 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   // In learning-center.tsx
 const downloadFile = async (file: FileObject) => {
   try {
+    console.log('File object:', file); // Debug: check what's in the file object
+    
     // If file has a Cloudinary URL, open it directly
     if (file.url && (file.url.includes('cloudinary') || file.url.startsWith('http'))) {
       window.open(file.url, '_blank');
       return;
     }
     
-    // For local files
+    // If file has a filename (local file), use the download API
     if (file.filename) {
       const downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
       const response = await fetch(downloadUrl, {
@@ -180,6 +182,12 @@ const downloadFile = async (file: FileObject) => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      return;
+    }
+    
+    // If file has a direct URL (could be from different storage)
+    if (file.url) {
+      window.open(file.url, '_blank');
       return;
     }
     

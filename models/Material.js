@@ -26,13 +26,25 @@ const MaterialSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // In Material.js
+    assignedTo: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    assignToAll: {
+      type: Boolean,
+      default: false,
+    },
     // In Material.js, ensure files schema captures Cloudinary data
+    // In Material.js, update the files schema
     files: [
       {
         originalName: String,
         filename: String, // For local files
-        url: String, // For Cloudinary files
-        publicId: String, // For Cloudinary files
+        url: String, // For Cloudinary or external URLs
+        publicId: String, // For Cloudinary
         size: Number,
         mimetype: String,
         uploadedAt: {
