@@ -18,24 +18,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { BookOpen, Download, FileText, Search, Eye } from "lucide-react";
+import { BookOpen, Download, FileText, Search } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 // Update your FileObject interface to match your database structure
 interface FileObject {
-  originalname?: string;
+  originalname?: string; // Note: lowercase 'n' in your database
   filename?: string;
   url?: string;
-  path?: string;
+  path?: string; // This might be present in your files
   size?: number;
   mimetype?: string;
+  // Add any other properties that might be in your files
   [key: string]: any;
 }
 interface FileData {
@@ -56,13 +50,14 @@ interface Material {
   language: string;
   description: string;
   content: string;
-  files: FileObject[];
+  files: FileObject[]; // This should match your actual file structure
   uploadedBy: {
     name: string;
-    _id?: string;
+    _id?: string; // Add this if needed
   };
   createdAt: string;
   updatedAt: string;
+  // Add any other properties from your database
   [key: string]: any;
 }
 interface LearningCenterProps {
@@ -79,8 +74,6 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   const [expandedDescriptions, setExpandedDescriptions] = useState<
     Record<string, boolean>
   >({});
-  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
 
   const fetchMaterials = async () => {
     try {
@@ -175,6 +168,7 @@ export default function LearningCenter({ token }: LearningCenterProps) {
     }
   };
 
+  // In learning-center.tsx
   const downloadFile = async (file: FileData) => {
     try {
       const originalName =
@@ -189,7 +183,7 @@ export default function LearningCenter({ token }: LearningCenterProps) {
           const downloadUrl = file.url.includes("?")
             ? `${file.url}&fl_attachment=${encodeURIComponent(originalName)}`
             : `${file.url}?fl_attachment=${encodeURIComponent(originalName)}`;
-          
+
           window.open(downloadUrl, "_blank");
           return;
         } else {
@@ -201,7 +195,9 @@ export default function LearningCenter({ token }: LearningCenterProps) {
 
       // ❌ Fallback to download API for local files (if any)
       if (file.filename) {
-        const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(originalName)}`;
+        const apiUrl = `/api/download/${encodeURIComponent(
+          file.filename
+        )}?originalName=${encodeURIComponent(originalName)}`;
         window.open(apiUrl, "_blank");
         return;
       }
@@ -211,12 +207,6 @@ export default function LearningCenter({ token }: LearningCenterProps) {
       console.error("Download failed", err, "File object was:", file);
       alert("Download failed. Please try again.");
     }
-  };
-
-  // Function to handle file viewing
-  const handleViewFile = (file: FileData) => {
-    setSelectedFile(file);
-    setDialogOpen(true);
   };
 
   useEffect(() => {
@@ -380,42 +370,28 @@ export default function LearningCenter({ token }: LearningCenterProps) {
                       <div className="space-y-1">
                         {material.files
                           .slice(0, 2)
-                          .map((file: FileObject, index: number) => {
-                            const fileName = file.originalName || file.originalname || file.filename || "file";
-                            return (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between text-xs"
+                          .map((file: FileObject, index: number) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between text-xs"
+                            >
+                              <span
+                                className="truncate max-w-[120px] sm:max-w-[150px]"
+                                title={file.originalName}
                               >
-                                <span
-                                  className="truncate max-w-[120px] sm:max-w-[150px]"
-                                  title={fileName}
-                                >
-                                  {fileName}
-                                </span>
-                                <div className="flex gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 w-auto px-2"
-                                    onClick={() => handleViewFile(file)}
-                                  >
-                                    <Eye className="h-3 w-3 inline-block mr-1" />
-                                    View
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 w-auto px-2"
-                                    onClick={() => downloadFile(file)}
-                                  >
-                                    <Download className="h-3 w-3 inline-block mr-1" />
-                                    Download
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                {file.originalName}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-auto px-2"
+                                onClick={() => downloadFile(file)}
+                              >
+                                <Download className="h-3 w-3 inline-block mr-1" />
+                                Download
+                              </Button>
+                            </div>
+                          ))}
                         {material.files.length > 2 && (
                           <p className="text-xs text-gray-500">
                             +{material.files.length - 2} more files
@@ -448,64 +424,6 @@ export default function LearningCenter({ token }: LearningCenterProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* File View Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          {selectedFile && (
-            <>
-              <DialogHeader className="flex-shrink-0">
-                <DialogTitle>View File</DialogTitle>
-                <DialogDescription>
-                  {selectedFile.originalName || selectedFile.originalname || selectedFile.filename || "File"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="overflow-y-auto flex-1">
-                {selectedFile.url && (
-                  <div className="w-full h-full min-h-[400px]">
-                    {selectedFile.mimetype?.includes("image/") ? (
-                      <img
-                        src={selectedFile.url}
-                        alt={selectedFile.originalName || "Image"}
-                        className="w-full h-auto max-h-[70vh] object-contain"
-                      />
-                    ) : selectedFile.mimetype === "application/pdf" ? (
-                      <iframe
-                        src={selectedFile.url}
-                        className="w-full h-full min-h-[400px]"
-                        title={selectedFile.originalName || "PDF"}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-64">
-                        <p className="text-gray-500">
-                          Preview not available for this file type. 
-                          <a 
-                            href={selectedFile.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="ml-2 text-blue-600 hover:underline"
-                          >
-                            Open in new tab
-                          </a>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex space-x-2 pt-4 border-t flex-shrink-0">
-                <Button
-                  onClick={() => downloadFile(selectedFile)}
-                  className="flex-1"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
