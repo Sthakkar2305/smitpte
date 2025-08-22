@@ -77,6 +77,8 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
       if (response.ok) {
         const data = await response.json();
         setSubmissions(data);
+      } else {
+        console.error("Failed to fetch submissions:", response.status);
       }
     } catch (error) {
       console.error("Error fetching submissions:", error);
@@ -100,15 +102,19 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
         },
         body: JSON.stringify({
           status,
-          feedbackText,
+          feedback: feedbackText,
         }),
       });
 
       if (response.ok) {
-        fetchSubmissions();
+        await fetchSubmissions();
         setSelectedSubmission(null);
         setFeedback("");
         setDialogOpen(false);
+      } else {
+        console.error("Failed to update submission:", response.status);
+        const errorData = await response.json();
+        console.error("Error details:", errorData);
       }
     } catch (error) {
       console.error("Error updating submission:", error);
@@ -214,28 +220,28 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
 
               {/* Single Dialog for all submissions */}
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
                   {selectedSubmission && (
                     <>
-                      <DialogHeader>
+                      <DialogHeader className="flex-shrink-0">
                         <DialogTitle>Review Submission</DialogTitle>
                         <DialogDescription>
                           Task: {selectedSubmission.task?.title} by{" "}
                           {selectedSubmission.student?.name}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4">
+                      <div className="overflow-y-auto flex-1 space-y-4 pr-2">
                         <div>
                           <h4 className="font-medium mb-2">Task Details:</h4>
                           <p className="text-sm text-gray-600">
-                            {selectedSubmission.task?.description}
+                            {selectedSubmission.task?.description || "No description available"}
                           </p>
                         </div>
 
                         {selectedSubmission.notes && (
                           <div>
                             <h4 className="font-medium mb-2">Student Notes:</h4>
-                            <p className="text-sm bg-gray-50 p-3 rounded">
+                            <p className="text-sm bg-gray-50 p-3 rounded max-h-32 overflow-y-auto">
                               {selectedSubmission.notes}
                             </p>
                           </div>
@@ -247,7 +253,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                               <h4 className="font-medium mb-2">
                                 Submitted Files:
                               </h4>
-                              <div className="space-y-2">
+                              <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {selectedSubmission.files.map((file, index) => (
                                   <div
                                     key={index}
@@ -280,52 +286,52 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                             onChange={(e) => setFeedback(e.target.value)}
                             placeholder="Provide feedback to the student..."
                             rows={4}
+                            className="resize-y min-h-[100px]"
                           />
                         </div>
-
-                        <div className="flex space-x-2">
-                          <Button
-                            onClick={() =>
-                              updateSubmissionStatus(
-                                selectedSubmission._id,
-                                "approved",
-                                feedback
-                              )
-                            }
-                            disabled={isUpdating}
-                            className="flex-1"
-                          >
-                            {isUpdating ? (
-                              <LoadingSpinner size="sm" />
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() =>
-                              updateSubmissionStatus(
-                                selectedSubmission._id,
-                                "rejected",
-                                feedback
-                              )
-                            }
-                            disabled={isUpdating}
-                            className="flex-1"
-                          >
-                            {isUpdating ? (
-                              <LoadingSpinner size="sm" />
-                            ) : (
-                              <>
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                      </div>
+                      <div className="flex space-x-2 pt-4 border-t flex-shrink-0">
+                        <Button
+                          onClick={() =>
+                            updateSubmissionStatus(
+                              selectedSubmission._id,
+                              "approved",
+                              feedback
+                            )
+                          }
+                          disabled={isUpdating}
+                          className="flex-1"
+                        >
+                          {isUpdating ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() =>
+                            updateSubmissionStatus(
+                              selectedSubmission._id,
+                              "rejected",
+                              feedback
+                            )
+                          }
+                          disabled={isUpdating}
+                          className="flex-1"
+                        >
+                          {isUpdating ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </>
                   )}
