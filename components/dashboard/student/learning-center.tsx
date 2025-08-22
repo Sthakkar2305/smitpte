@@ -176,21 +176,24 @@ const downloadFile = async (file: FileData) => {
 
     if (file.url) {
       // ✅ Cloudinary direct URL
-      const isCloudinary =
-        file.url.includes("cloudinary.com") ||
-        file.url.includes("res.cloudinary.com");
+      const isCloudinary = file.url.includes("cloudinary.com");
 
-      const downloadUrl = isCloudinary
-        ? file.url.includes("?")
+      if (isCloudinary) {
+        // Handle Cloudinary download directly
+        const downloadUrl = file.url.includes("?")
           ? `${file.url}&fl_attachment=${encodeURIComponent(originalName)}`
-          : `${file.url}?fl_attachment=${encodeURIComponent(originalName)}`
-        : file.url;
-
-      window.open(downloadUrl, "_blank");
-      return;
+          : `${file.url}?fl_attachment=${encodeURIComponent(originalName)}`;
+        
+        window.open(downloadUrl, "_blank");
+        return;
+      } else {
+        // For non-Cloudinary URLs
+        window.open(file.url, "_blank");
+        return;
+      }
     }
 
-    // ❌ Only fallback if no `file.url`
+    // ❌ Fallback to download API for local files (if any)
     if (file.filename) {
       const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(originalName)}`;
       window.open(apiUrl, "_blank");
