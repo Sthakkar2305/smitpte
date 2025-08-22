@@ -4,9 +4,17 @@ import path from 'path';
 import fs from 'fs';
 import { promises as fsp } from 'fs';
 
-// Define the uploads directory - use project uploads first, fallback to tmp
-const PROJECT_UPLOADS_DIR = path.join(process.cwd(), 'project', 'uploads');
-const FALLBACK_UPLOADS_DIR = '/tmp';
+export const runtime = 'nodejs';
+
+// Resolve candidate uploads directories in priority order
+const CANDIDATE_UPLOAD_DIRS = [
+  // When process.cwd() is the app project (e.g., pte/project)
+  path.join(process.cwd(), 'uploads'),
+  // When process.cwd() is the workspace root (e.g., pte)
+  path.join(process.cwd(), 'project', 'uploads'),
+  // Fallback tmp (used by some hosts)
+  '/tmp',
+];
 
 export async function GET(
   req: NextRequest,
@@ -15,14 +23,9 @@ export async function GET(
   const { filename } = params;
   
   try {
-    // Try project uploads dir first, else fallback
-    const candidatePaths = [
-      path.join(PROJECT_UPLOADS_DIR, filename),
-      path.join(FALLBACK_UPLOADS_DIR, filename),
-    ];
-
     let filePath: string | null = null;
-    for (const p of candidatePaths) {
+    for (const dir of CANDIDATE_UPLOAD_DIRS) {
+      const p = path.join(dir, filename);
       try {
         await fsp.access(p);
         filePath = p;

@@ -156,26 +156,29 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   // In learning-center.tsx
 const downloadFile = async (file: FileObject) => {
   try {
-    console.log('File object:', file); // Debug: check what's in the file object
-    
-    // If file has a Cloudinary URL, open it directly
-    if (file.url && (file.url.includes('cloudinary') || file.url.startsWith('http'))) {
-      window.open(file.url, '_blank');
+    const isAbsoluteHttp = (u?: string) => !!u && /^https?:\/\//i.test(u);
+    const isRootRelative = (u?: string) => !!u && u.startsWith('/');
+
+    // Absolute URLs (e.g., Cloudinary)
+    if (isAbsoluteHttp(file.url)) {
+      window.open(file.url as string, '_blank');
       return;
     }
-    
-    // If file has a filename (local file), use the download API
+
+    // Root-relative URLs (e.g., /uploads/filename.ext)
+    if (isRootRelative(file.url)) {
+      window.open(file.url as string, '_blank');
+      return;
+    }
+
+    // Filename only → use API
     if (file.filename) {
-      const downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
-      const response = await fetch(downloadUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
+      const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
-      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
       a.download = file.originalName || 'download';
       document.body.appendChild(a);
@@ -184,17 +187,18 @@ const downloadFile = async (file: FileObject) => {
       window.URL.revokeObjectURL(url);
       return;
     }
-    
-    // If file has a direct URL (could be from different storage)
+
+    // Fallback: relative without leading slash (e.g., 'uploads/x.pdf')
     if (file.url) {
-      window.open(file.url, '_blank');
+      const normalized = file.url.startsWith('uploads/') ? `/${file.url}` : file.url;
+      window.open(normalized, '_blank');
       return;
     }
-    
-    throw new Error("No valid file information available");
+
+    throw new Error('No valid file information available');
   } catch (err) {
-    console.error("Download failed", err);
-    alert("Download failed. Please try again.");
+    console.error('Download failed', err);
+    alert('Download failed. Please try again.');
   }
 };
 
