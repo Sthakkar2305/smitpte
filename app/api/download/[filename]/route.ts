@@ -5,7 +5,7 @@ import fs from 'fs';
 import { promises as fsp } from 'fs';
 
 // Define the uploads directory - make sure this matches where files are stored
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const UPLOADS_DIR =  "/tmp";
 
 export async function GET(
   req: NextRequest,
