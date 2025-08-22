@@ -235,53 +235,49 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const downloadFile = (file: FileData) => {
+  const downloadFile = async (file: FileData) => {
     try {
       console.log("File object received:", file);
 
-      // Handle different property names
       const originalName =
         file.originalName || file.originalname || file.filename || "download";
-      const fileName =
-        file.filename || file.originalName || file.originalname || "file";
       const fileUrl = file.url || file.path;
 
-      // If it's a Cloudinary file
-      if (
-        fileUrl &&
-        (fileUrl.includes("cloudinary.com") ||
-          fileUrl.includes("res.cloudinary.com"))
-      ) {
-        console.log("Cloudinary file detected, opening URL:", fileUrl);
-        window.open(fileUrl, "_blank");
+      // Always try to use the URL first (for Cloudinary files)
+      if (fileUrl) {
+        console.log("Opening URL:", fileUrl);
+
+        // For Cloudinary files, add download flag
+        let downloadUrl = fileUrl;
+        if (
+          fileUrl.includes("cloudinary.com") &&
+          !fileUrl.includes("fl_attachment")
+        ) {
+          downloadUrl = fileUrl.includes("?")
+            ? `${fileUrl}&fl_attachment`
+            : `${fileUrl}?fl_attachment`;
+        }
+
+        window.open(downloadUrl, "_blank");
         return;
       }
 
-      // For local files with filename
-      if (fileName) {
-        console.log("Local file detected, using download API");
+      // Fallback to local file download only if no URL exists
+      if (file.filename) {
+        console.log("No URL found, trying local file download");
         const apiUrl = `/api/download/${encodeURIComponent(
-          fileName
+          file.filename
         )}?originalName=${encodeURIComponent(originalName)}`;
         window.open(apiUrl, "_blank");
         return;
       }
 
-      // Fallback: if we only have a URL/path, try to open it
-      if (fileUrl) {
-        console.log("Fallback: opening URL/path directly");
-        window.open(fileUrl, "_blank");
-        return;
-      }
-
-      console.error("No valid file information available in:", file);
       throw new Error("No valid file information available");
     } catch (err) {
       console.error("Download failed", err, "File object was:", file);
       alert("Download failed. Please try again.");
     }
   };
-
   const resetForm = () => {
     setFormData({
       title: "",
