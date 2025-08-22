@@ -8,7 +8,7 @@ export async function POST(request) {
     await connectDB();
     
     // Check if default admin already exists
-    const existingAdmin = await User.findOne({ email: 'smit@gmail.com' });
+    const existingAdmin = await User.findOne({ email: 'smit@pte.com' });
     if (existingAdmin) {
       return NextResponse.json(
         { message: 'Default admin already exists' },
@@ -16,11 +16,11 @@ export async function POST(request) {
       );
     }
 
-    const hashedPassword = await hashPassword('123456789');
+    const hashedPassword = await hashPassword('24446666688888889');
     
     const defaultAdmin = new User({
       name: 'Smit (Default Admin)',
-      email: 'smit@gmail.com',
+      email: 'smit@pte.com',
       password: hashedPassword,
       role: 'admin'
     });
