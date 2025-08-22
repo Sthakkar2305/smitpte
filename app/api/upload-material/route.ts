@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from "cloudinary";
+import {
+  v2 as cloudinary,
+  UploadApiResponse,
+  UploadApiErrorResponse,
+} from "cloudinary";
 import { verifyToken } from "@/utils/auth";
 
 export const runtime = "nodejs";
@@ -49,13 +53,16 @@ export async function POST(req: NextRequest) {
         (resolve, reject) => {
           cloudinary.uploader
             .upload_stream(
-              { 
-                resource_type: "auto", 
+              {
+                resource_type: "auto",
                 folder: "pte-materials",
                 use_filename: true,
-                unique_filename: true
+                unique_filename: true,
               },
-              (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+              (
+                error: UploadApiErrorResponse | undefined,
+                result: UploadApiResponse | undefined
+              ) => {
                 if (error || !result) reject(error);
                 else resolve(result);
               }
@@ -67,10 +74,13 @@ export async function POST(req: NextRequest) {
       results.push({
         originalName: file.name,
         filename: uploaded.public_id,
-        url: uploaded.secure_url,
+        url: uploaded.secure_url, // ✅ This is the Cloudinary link
         publicId: uploaded.public_id,
         size: uploaded.bytes,
-        mimetype: uploaded.resource_type === "image" ? `image/${uploaded.format}` : uploaded.resource_type,
+        mimetype:
+          uploaded.resource_type === "image"
+            ? `image/${uploaded.format}`
+            : uploaded.resource_type,
       });
     }
 

@@ -236,83 +236,40 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   };
 const downloadFile = async (file: FileData) => {
   try {
-    console.log("File object received:", file);
-
-    // Handle different property names
     const originalName =
       file.originalName || file.originalname || file.filename || "download";
-    const fileName =
-      file.filename || file.originalName || file.originalname || "file";
-    const fileUrl = file.url || file.path;
 
-    // ✅ Detect Cloudinary files
-    const isCloudinaryFile =
-      fileUrl &&
-      (fileUrl.includes("cloudinary.com") ||
-        fileUrl.includes("res.cloudinary.com") ||
-        (file.publicId && !fileUrl.includes("/uploads/")));
+    if (file.url) {
+      // ✅ Cloudinary direct URL
+      const isCloudinary =
+        file.url.includes("cloudinary.com") ||
+        file.url.includes("res.cloudinary.com");
 
-    if (isCloudinaryFile) {
-      console.log("Cloudinary file detected, opening URL:", fileUrl);
-
-      // Force download instead of preview
-      let downloadUrl = fileUrl;
-      if (
-        fileUrl.includes("cloudinary.com") &&
-        !fileUrl.includes("fl_attachment")
-      ) {
-        downloadUrl = fileUrl.includes("?")
-          ? `${fileUrl}&fl_attachment=${encodeURIComponent(originalName)}`
-          : `${fileUrl}?fl_attachment=${encodeURIComponent(originalName)}`;
-      }
+      const downloadUrl = isCloudinary
+        ? file.url.includes("?")
+          ? `${file.url}&fl_attachment=${encodeURIComponent(originalName)}`
+          : `${file.url}?fl_attachment=${encodeURIComponent(originalName)}`
+        : file.url;
 
       window.open(downloadUrl, "_blank");
       return;
     }
 
-    // ✅ Handle local files
-    if (fileName) {
-      console.log("Local file detected, using download API");
-
-      try {
-        const checkResponse = await fetch(
-          `/api/download/${encodeURIComponent(fileName)}`,
-          { method: "HEAD" }
-        );
-
-        if (checkResponse.ok) {
-          const apiUrl = `/api/download/${encodeURIComponent(
-            fileName
-          )}?originalName=${encodeURIComponent(originalName)}`;
-          window.open(apiUrl, "_blank");
-        } else {
-          // If local file doesn't exist, fallback to direct URL if available
-          if (fileUrl) {
-            console.log("Local file not found, trying URL instead:", fileUrl);
-            window.open(fileUrl, "_blank");
-          } else {
-            throw new Error("Local file not found and no URL available");
-          }
-        }
-      } catch (error) {
-        console.log("Error checking file, trying URL instead");
-        if (fileUrl) {
-          window.open(fileUrl, "_blank");
-        } else {
-          throw error;
-        }
-      }
+    // ❌ Only fallback if no `file.url`
+    if (file.filename) {
+      const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(originalName)}`;
+      window.open(apiUrl, "_blank");
       return;
     }
 
-    // ❌ No usable file info
-    console.error("No valid file information available in:", file);
-    throw new Error("No valid file information available");
+    alert("This file has no download link. Please re-upload it.");
   } catch (err) {
     console.error("Download failed", err, "File object was:", file);
     alert("Download failed. Please try again.");
   }
 };
+
+
 
   const resetForm = () => {
     setFormData({
