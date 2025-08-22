@@ -171,38 +171,41 @@ export default function Home() {
   };
 
   // Main view renderer for admin/student
-  const renderContent = () => {
-    if (!user) return null;
-    if (user.role === 'admin') {
-      switch (activeView) {
-        case 'students':
-          return <StudentsManagement token={token} />;
-        case 'teachers':
-          return <TeacherManagement token={token} />;
-        case 'tasks':
-          return <TaskManager token={token} />;
-        case 'submissions':
-          return <SubmissionsReview token={token} />;
-        case 'materials':
-          return <MaterialUpload token={token} />;
-        case 'dashboard':
-        default:
-          return renderDashboardCards();
-      }
-    } else {
-      switch (activeView) {
-        case 'tasks':
-          return <TaskList token={token} />;
-        case 'learning':
-          return <LearningCenter token={token} />;
-        case 'progress':
-          return <ProgressReport token={token} />;
-        case 'dashboard':
-        default:
-          return renderDashboardCards();
-      }
+// Main view renderer for admin/student
+const renderContent = () => {
+  if (!user) return null;
+  if (user.role === 'admin') {
+    switch (activeView) {
+      case 'students':
+        return <StudentsManagement token={token} />;
+      case 'teachers':
+        return <TeacherManagement token={token} />;
+      case 'tasks':
+        return <TaskManager token={token} />;
+      case 'submissions':
+        return <SubmissionsReview token={token} />;
+      case 'materials':
+        return <MaterialUpload token={token} />;
+      case 'dashboard':
+      default:
+        return renderDashboardCards();
     }
-  };
+  } else {
+    switch (activeView) {
+      case 'tasks':
+        return <TaskList token={token} />;
+      case 'learning':
+        return <LearningCenter token={token} />;
+      case 'grammar': // Add this case
+        return <GrammarGuide />;
+      case 'progress':
+        return <ProgressReport token={token} />;
+      case 'dashboard':
+      default:
+        return renderDashboardCards();
+    }
+  }
+};
 
   // Auth screens
   if (!user) {
