@@ -1,4 +1,3 @@
-// app/api/download/[filename]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
@@ -6,17 +5,8 @@ import { promises as fsp } from 'fs';
 
 export const runtime = 'nodejs';
 
-// Resolve candidate uploads directories in priority order
-const CANDIDATE_UPLOAD_DIRS = [
-  // When process.cwd() is the app project (e.g., pte/project)
-  path.join(process.cwd(), 'uploads'),
-  // When process.cwd() is the workspace root (e.g., pte)
-  path.join(process.cwd(), 'project', 'uploads'),
-  // Absolute path fallback
-  path.join(__dirname, '..', '..', '..', 'uploads'),
-  // Fallback tmp (used by some hosts)
-  '/tmp',
-];
+// For Cloudinary files, we'll redirect to the Cloudinary URL
+// For local files, we'll serve them directly
 
 export async function GET(
   req: NextRequest,
@@ -24,45 +14,39 @@ export async function GET(
 ) {
   const { filename } = params;
   
-  // Debug endpoint: if filename is "debug", return list of available files
-  if (filename === 'debug') {
-    try {
-      const debugDir = path.join(process.cwd(), 'project', 'uploads');
-      const files = await fsp.readdir(debugDir);
-      return NextResponse.json({ 
-        message: 'Available files',
-        files,
-        cwd: process.cwd(),
-        debugDir
-      });
-    } catch (error) {
-      return NextResponse.json({ 
-        error: 'Cannot read uploads directory',
-        cwd: process.cwd()
-      });
-    }
-  }
-  
   try {
-    console.log('Download request for filename:', filename);
-    console.log('Current working directory:', process.cwd());
+    // Check if this is a Cloudinary file (indicated by a query parameter)
+    const url = new URL(req.url);
+    const isCloudinary = url.searchParams.get('cloudinary');
+    const cloudinaryUrl = url.searchParams.get('url');
+    const originalName = url.searchParams.get('originalName') || filename;
     
+    // If it's a Cloudinary file, redirect to the Cloudinary URL
+    if (isCloudinary && cloudinaryUrl) {
+      return NextResponse.redirect(cloudinaryUrl);
+    }
+    
+    // For local files, try to find them in various directories
+    const CANDIDATE_UPLOAD_DIRS = [
+      path.join(process.cwd(), 'uploads'),
+      path.join(process.cwd(), 'project', 'uploads'),
+      path.join(__dirname, '..', '..', '..', 'uploads'),
+      '/tmp',
+    ];
+
     let filePath: string | null = null;
     for (const dir of CANDIDATE_UPLOAD_DIRS) {
       const p = path.join(dir, filename);
-      console.log('Checking path:', p);
       try {
         await fsp.access(p);
         filePath = p;
-        console.log('File found at:', p);
         break;
       } catch (err) {
-        console.log('File not found at:', p);
+        // File not found in this directory, continue searching
       }
     }
 
     if (!filePath) {
-      console.log('File not found in any directory');
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
@@ -72,10 +56,6 @@ export async function GET(
     
     // Read the file as a buffer
     const fileBuffer = await fsp.readFile(filePath);
-    
-    // Get original filename from query params if available
-    const url = new URL(req.url);
-    const originalName = url.searchParams.get('originalName') || filename;
     
     // Determine content type based on file extension
     const getContentType = (filename: string) => {

@@ -156,42 +156,24 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   // In learning-center.tsx
 const downloadFile = async (file: FileObject) => {
   try {
-    const isAbsoluteHttp = (u?: string) => !!u && /^https?:\/\//i.test(u);
-    const isRootRelative = (u?: string) => !!u && u.startsWith('/');
-
-    // Absolute URLs (e.g., Cloudinary)
-    if (isAbsoluteHttp(file.url)) {
-      window.open(file.url as string, '_blank');
+    // If it's a Cloudinary file
+    if (file.url && (file.url.includes('cloudinary.com') || file.url.includes('res.cloudinary.com'))) {
+      // Use the download API with cloudinary parameters
+      const downloadUrl = `/api/download/${encodeURIComponent(file.filename || 'cloudinary')}?cloudinary=true&url=${encodeURIComponent(file.url)}&originalName=${encodeURIComponent(file.originalName)}`;
+      window.open(downloadUrl, '_blank');
       return;
     }
-
-    // Root-relative URLs (e.g., /uploads/filename.ext)
-    if (isRootRelative(file.url)) {
-      window.open(file.url as string, '_blank');
-      return;
-    }
-
-    // Filename only → use API
+    
+    // For local files
     if (file.filename) {
       const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.originalName || 'download';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      window.open(apiUrl, '_blank');
       return;
     }
 
-    // Fallback: relative without leading slash (e.g., 'uploads/x.pdf')
+    // Fallback: if we only have a URL, try to open it
     if (file.url) {
-      const normalized = file.url.startsWith('uploads/') ? `/${file.url}` : file.url;
-      window.open(normalized, '_blank');
+      window.open(file.url, '_blank');
       return;
     }
 

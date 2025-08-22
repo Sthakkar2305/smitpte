@@ -27,6 +27,16 @@ import { Plus, Upload, FileText, Download, Edit, Trash2 } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
+// Add this interface definition
+interface FileObject {
+  originalName: string;
+  filename: string;
+  url?: string;
+  size?: number;
+  mimetype?: string;
+  [key: string]: any;
+}
+
 interface UploadedFile {
   originalName: string;
   filename: string;
@@ -54,6 +64,8 @@ interface Material {
 interface MaterialUploadProps {
   token: string;
 }
+
+// ... rest of your code remains the same
 
 export default function MaterialUpload({ token }: MaterialUploadProps) {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -90,47 +102,48 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    
-    const uploadPromises = Array.from(files).map(async (file) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      try {
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          return {
-            originalName: result.originalName,
-            filename: result.filename,
-            url: result.url,
-            size: result.size,
-            mimetype: result.mimetype
-          };
-        } else {
-          console.error('Upload failed:', await response.text());
-        }
-      } catch (error) {
-        console.error('Upload error:', error);
+ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = e.target.files;
+  if (!files) return;
+  
+  const uploadPromises = Array.from(files).map(async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      // Use the new material-specific upload endpoint
+      const response = await fetch('/api/upload-material', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        return {
+          originalName: result.originalName,
+          filename: result.filename,
+          url: result.url,
+          size: result.size,
+          mimetype: result.mimetype
+        };
+      } else {
+        console.error('Upload failed:', await response.text());
       }
-      return null;
-    });
-    
-    const results = await Promise.all(uploadPromises);
-    const successfulUploads = results.filter((result): result is UploadedFile => 
-      result !== null
-    );
-    
-    setUploadedFiles(prev => [...prev, ...successfulUploads]);
-  };
+    } catch (error) {
+      console.error('Upload error:', error);
+    }
+    return null;
+  });
+  
+  const results = await Promise.all(uploadPromises);
+  const successfulUploads = results.filter((result): result is UploadedFile => 
+    result !== null
+  );
+  
+  setUploadedFiles(prev => [...prev, ...successfulUploads]);
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,43 +214,35 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const downloadFile = (file: UploadedFile) => {
-    try {
-      const isAbsoluteHttp = (u?: string) => !!u && /^https?:\/\//i.test(u);
-      const isRootRelative = (u?: string) => !!u && u.startsWith('/');
-
-      // Absolute URLs (e.g., Cloudinary)
-      if (isAbsoluteHttp(file.url)) {
-        window.open(file.url, '_blank');
-        return;
-      }
-
-      // Root-relative URLs (e.g., /uploads/filename.ext)
-      if (isRootRelative(file.url)) {
-        window.open(file.url, '_blank');
-        return;
-      }
-
-      // Filename only → use API
-      if (file.filename) {
-        const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
-        window.open(apiUrl, '_blank');
-        return;
-      }
-
-      // Fallback: relative without leading slash (e.g., 'uploads/x.pdf')
-      if (file.url) {
-        const normalized = file.url.startsWith('uploads/') ? `/${file.url}` : file.url;
-        window.open(normalized, '_blank');
-        return;
-      }
-
-      throw new Error('No valid file information available');
-    } catch (err) {
-      console.error('Download failed', err);
-      alert('Download failed. Please try again.');
+const downloadFile = (file: UploadedFile | FileObject) => {
+  try {
+    // If it's a Cloudinary file
+    if (file.url && (file.url.includes('cloudinary.com') || file.url.includes('res.cloudinary.com'))) {
+      // Use the download API with cloudinary parameters
+      const downloadUrl = `/api/download/${encodeURIComponent(file.filename || 'cloudinary')}?cloudinary=true&url=${encodeURIComponent(file.url)}&originalName=${encodeURIComponent(file.originalName)}`;
+      window.open(downloadUrl, '_blank');
+      return;
     }
-  };
+    
+    // For local files
+    if (file.filename) {
+      const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
+      window.open(apiUrl, '_blank');
+      return;
+    }
+
+    // Fallback: if we only have a URL, try to open it
+    if (file.url) {
+      window.open(file.url, '_blank');
+      return;
+    }
+
+    throw new Error('No valid file information available');
+  } catch (err) {
+    console.error('Download failed', err);
+    alert('Download failed. Please try again.');
+  }
+};
 
   const resetForm = () => {
     setFormData({
