@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar, FileText, Clock, Upload, X } from "lucide-react";
+import { Calendar, FileText, Clock, Upload, X, Eye } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 // Types for your data
@@ -69,6 +69,8 @@ export default function TaskList({ token }: TaskListProps) {
   const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState("");
 
   const fetchTasks = async () => {
     try {
@@ -205,6 +207,11 @@ export default function TaskList({ token }: TaskListProps) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleViewFeedback = (feedbackText: string) => {
+    setSelectedFeedback(feedbackText);
+    setFeedbackDialogOpen(true);
+  };
+
   useEffect(() => {
     fetchTasks();
     fetchSubmissions();
@@ -280,9 +287,39 @@ export default function TaskList({ token }: TaskListProps) {
                             <h4 className="font-medium text-xs sm:text-sm text-blue-900">
                               Teacher Feedback:
                             </h4>
-                            <p className="text-xs sm:text-sm text-blue-800 mt-1">
+                            <p className="text-xs sm:text-sm text-blue-800 mt-1 line-clamp-2">
                               {submission.feedback.text}
                             </p>
+                           {submission?.feedback?.text && (
+  <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
+    <h4 className="font-medium text-xs sm:text-sm text-blue-900">
+      Teacher Feedback:
+    </h4>
+    <p className="text-xs sm:text-sm text-blue-800 mt-1 line-clamp-2">
+      {submission.feedback.text}
+    </p>
+
+    {/* Button to view full feedback */}
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="link" className="text-xs text-blue-700 p-0 h-auto">
+          View Full Feedback
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Teacher Feedback</DialogTitle>
+        </DialogHeader>
+        <div className="p-2">
+          <p className="text-sm text-gray-800 whitespace-pre-wrap">
+            {submission.feedback.text}
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </div>
+)}
+
                           </div>
                         )}
                       </div>
@@ -451,6 +488,23 @@ export default function TaskList({ token }: TaskListProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Feedback Dialog */}
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Teacher Feedback</DialogTitle>
+            <DialogDescription>
+              Detailed feedback from your teacher
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">
+              {selectedFeedback}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
