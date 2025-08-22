@@ -21,13 +21,28 @@ import {
 import { BookOpen, Download, FileText, Search } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
+// Update your FileObject interface to match your database structure
 interface FileObject {
-  originalName: string;
-  filename: string;
+  originalname?: string; // Note: lowercase 'n' in your database
+  filename?: string;
   url?: string;
+  path?: string; // This might be present in your files
+  size?: number;
+  mimetype?: string;
+  // Add any other properties that might be in your files
   [key: string]: any;
 }
-
+interface FileData {
+  originalName?: string;
+  originalname?: string;
+  filename?: string;
+  url?: string;
+  path?: string;
+  publicId?: string;
+  size?: number;
+  mimetype?: string;
+  [key: string]: any;
+}
 interface Material {
   _id: string;
   title: string;
@@ -35,14 +50,16 @@ interface Material {
   language: string;
   description: string;
   content: string;
-  files: FileObject[];
+  files: FileObject[]; // This should match your actual file structure
   uploadedBy: {
     name: string;
+    _id?: string; // Add this if needed
   };
   createdAt: string;
   updatedAt: string;
+  // Add any other properties from your database
+  [key: string]: any;
 }
-
 interface LearningCenterProps {
   token: string;
 }
@@ -65,7 +82,7 @@ export default function LearningCenter({ token }: LearningCenterProps) {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setMaterials(data);
@@ -92,9 +109,7 @@ export default function LearningCenter({ token }: LearningCenterProps) {
     }
 
     if (typeFilter !== "all") {
-      filtered = filtered.filter(
-        (material) => material.type === typeFilter
-      );
+      filtered = filtered.filter((material) => material.type === typeFilter);
     }
 
     if (languageFilter !== "all") {
@@ -154,36 +169,51 @@ export default function LearningCenter({ token }: LearningCenterProps) {
   };
 
   // In learning-center.tsx
-const downloadFile = async (file: FileObject) => {
-  try {
-    // If it's a Cloudinary file
-    if (file.url && (file.url.includes('cloudinary.com') || file.url.includes('res.cloudinary.com'))) {
-      // Use the download API with cloudinary parameters
-      const downloadUrl = `/api/download/${encodeURIComponent(file.filename || 'cloudinary')}?cloudinary=true&url=${encodeURIComponent(file.url)}&originalName=${encodeURIComponent(file.originalName)}`;
-      window.open(downloadUrl, '_blank');
-      return;
-    }
-    
-    // For local files
-    if (file.filename) {
-      const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
-      window.open(apiUrl, '_blank');
-      return;
-    }
+  const downloadFile = async (file: FileObject) => {
+    try {
+      console.log("File object received:", file);
 
-    // Fallback: if we only have a URL, try to open it
-    if (file.url) {
-      window.open(file.url, '_blank');
-      return;
+      // Handle different property names - your database uses 'originalname' not 'originalName'
+      const originalName =
+        file.originalname || file.originalName || file.filename || "download";
+      const fileName = file.filename || file.originalname || "file";
+      const fileUrl = file.url || file.path;
+
+      // If it's a Cloudinary file
+      if (
+        fileUrl &&
+        (fileUrl.includes("cloudinary.com") ||
+          fileUrl.includes("res.cloudinary.com"))
+      ) {
+        console.log("Cloudinary file detected, opening URL:", fileUrl);
+        window.open(fileUrl, "_blank");
+        return;
+      }
+
+      // For local files with filename
+      if (fileName) {
+        console.log("Local file detected, using download API");
+        const apiUrl = `/api/download/${encodeURIComponent(
+          fileName
+        )}?originalName=${encodeURIComponent(originalName)}`;
+        window.open(apiUrl, "_blank");
+        return;
+      }
+
+      // Fallback: if we only have a URL/path, try to open it
+      if (fileUrl) {
+        console.log("Fallback: opening URL/path directly");
+        window.open(fileUrl, "_blank");
+        return;
+      }
+
+      console.error("No valid file information available in:", file);
+      throw new Error("No valid file information available");
+    } catch (err) {
+      console.error("Download failed", err, "File object was:", file);
+      alert("Download failed. Please try again.");
     }
-
-    throw new Error('No valid file information available');
-  } catch (err) {
-    console.error('Download failed', err);
-    alert('Download failed. Please try again.');
-  }
-};
-
+  };
   useEffect(() => {
     if (token) {
       fetchMaterials();

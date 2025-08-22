@@ -1,12 +1,24 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+"use client";
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -22,27 +34,31 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Plus, Upload, FileText, Download, Edit, Trash2 } from 'lucide-react';
-import LoadingSpinner from '@/components/ui/loading-spinner';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+} from "@/components/ui/table";
+import { Plus, Upload, FileText, Download, Edit, Trash2 } from "lucide-react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-// Add this interface definition
-interface FileObject {
-  originalName: string;
-  filename: string;
+// Unified file interface that works for both uploads and downloads
+interface FileData {
+  originalName?: string;
+  originalname?: string; // For database compatibility
+  filename?: string;
   url?: string;
+  path?: string;
+  publicId?: string;
   size?: number;
   mimetype?: string;
-  [key: string]: any;
-}
-
-interface UploadedFile {
-  originalName: string;
-  filename: string;
-  url: string;
-  size: number;
-  mimetype: string;
   [key: string]: any;
 }
 
@@ -53,9 +69,10 @@ interface Material {
   language: string;
   description: string;
   content: string;
-  files: UploadedFile[];
+  files: FileData[];
   uploadedBy: {
     name: string;
+    _id?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -65,114 +82,118 @@ interface MaterialUploadProps {
   token: string;
 }
 
-// ... rest of your code remains the same
-
 export default function MaterialUpload({ token }: MaterialUploadProps) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [formData, setFormData] = useState({
-    title: '',
-    type: 'grammar',
-    language: 'english',
-    description: '',
-    content: ''
+    title: "",
+    type: "grammar",
+    language: "english",
+    description: "",
+    content: "",
   });
 
   const fetchMaterials = async () => {
     try {
-      const response = await fetch('/api/materials', {
+      const response = await fetch("/api/materials", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
         const data = await response.json();
         setMaterials(data);
       } else {
-        console.error('Failed to fetch materials');
+        console.error("Failed to fetch materials");
       }
     } catch (error) {
-      console.error('Error fetching materials:', error);
+      console.error("Error fetching materials:", error);
     } finally {
       setLoading(false);
     }
   };
 
- const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = e.target.files;
-  if (!files) return;
-  
-  const uploadPromises = Array.from(files).map(async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      // Use the new material-specific upload endpoint
-      const response = await fetch('/api/upload-material', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        return {
-          originalName: result.originalName,
-          filename: result.filename,
-          url: result.url,
-          size: result.size,
-          mimetype: result.mimetype
-        };
-      } else {
-        console.error('Upload failed:', await response.text());
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const response = await fetch("/api/upload-material", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          // Return a consistent FileData object
+          return {
+            originalName:
+              result.originalName || result.originalname || file.name,
+            originalname:
+              result.originalName || result.originalname || file.name,
+            filename: result.filename || result.publicId || file.name,
+            url: result.url,
+            publicId: result.publicId,
+            size: result.size,
+            mimetype: result.mimetype,
+          };
+        } else {
+          console.error("Upload failed:", await response.text());
+        }
+      } catch (error) {
+        console.error("Upload error:", error);
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-    }
-    return null;
-  });
-  
-  const results = await Promise.all(uploadPromises);
-  const successfulUploads = results.filter((result): result is UploadedFile => 
-    result !== null
-  );
-  
-  setUploadedFiles(prev => [...prev, ...successfulUploads]);
-};
+      return null;
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const successfulUploads = results.filter(
+      (result) => result !== null
+    ) as FileData[];
+
+    setUploadedFiles((prev) => [...prev, ...successfulUploads] as FileData[]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const url = editingMaterial ? `/api/materials?id=${editingMaterial._id}` : '/api/materials';
-      const method = editingMaterial ? 'PUT' : 'POST';
-      
+      const url = editingMaterial
+        ? `/api/materials?id=${editingMaterial._id}`
+        : "/api/materials";
+      const method = editingMaterial ? "PUT" : "POST";
+
       const response = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...formData,
-          files: uploadedFiles
+          files: uploadedFiles,
         }),
       });
-      
+
       if (response.ok) {
         setIsDialogOpen(false);
         resetForm();
         fetchMaterials();
       } else {
-        console.error('Failed to save material');
+        console.error("Failed to save material");
       }
     } catch (error) {
-      console.error('Error creating/updating material:', error);
+      console.error("Error creating/updating material:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -184,8 +205,8 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
       title: material.title,
       type: material.type,
       language: material.language,
-      description: material.description || '',
-      content: material.content || ''
+      description: material.description || "",
+      content: material.content || "",
     });
     setUploadedFiles(material.files || []);
     setIsDialogOpen(true);
@@ -194,63 +215,80 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   const handleDelete = async (id: string) => {
     try {
       const response = await fetch(`/api/materials?id=${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         fetchMaterials();
       } else {
-        console.error('Failed to delete material');
+        console.error("Failed to delete material");
       }
     } catch (error) {
-      console.error('Error deleting material:', error);
+      console.error("Error deleting material:", error);
     }
   };
 
   const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-const downloadFile = (file: UploadedFile | FileObject) => {
-  try {
-    // If it's a Cloudinary file
-    if (file.url && (file.url.includes('cloudinary.com') || file.url.includes('res.cloudinary.com'))) {
-      // Use the download API with cloudinary parameters
-      const downloadUrl = `/api/download/${encodeURIComponent(file.filename || 'cloudinary')}?cloudinary=true&url=${encodeURIComponent(file.url)}&originalName=${encodeURIComponent(file.originalName)}`;
-      window.open(downloadUrl, '_blank');
-      return;
-    }
-    
-    // For local files
-    if (file.filename) {
-      const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
-      window.open(apiUrl, '_blank');
-      return;
-    }
+  const downloadFile = (file: FileData) => {
+    try {
+      console.log("File object received:", file);
 
-    // Fallback: if we only have a URL, try to open it
-    if (file.url) {
-      window.open(file.url, '_blank');
-      return;
-    }
+      // Handle different property names
+      const originalName =
+        file.originalName || file.originalname || file.filename || "download";
+      const fileName =
+        file.filename || file.originalName || file.originalname || "file";
+      const fileUrl = file.url || file.path;
 
-    throw new Error('No valid file information available');
-  } catch (err) {
-    console.error('Download failed', err);
-    alert('Download failed. Please try again.');
-  }
-};
+      // If it's a Cloudinary file
+      if (
+        fileUrl &&
+        (fileUrl.includes("cloudinary.com") ||
+          fileUrl.includes("res.cloudinary.com"))
+      ) {
+        console.log("Cloudinary file detected, opening URL:", fileUrl);
+        window.open(fileUrl, "_blank");
+        return;
+      }
+
+      // For local files with filename
+      if (fileName) {
+        console.log("Local file detected, using download API");
+        const apiUrl = `/api/download/${encodeURIComponent(
+          fileName
+        )}?originalName=${encodeURIComponent(originalName)}`;
+        window.open(apiUrl, "_blank");
+        return;
+      }
+
+      // Fallback: if we only have a URL/path, try to open it
+      if (fileUrl) {
+        console.log("Fallback: opening URL/path directly");
+        window.open(fileUrl, "_blank");
+        return;
+      }
+
+      console.error("No valid file information available in:", file);
+      throw new Error("No valid file information available");
+    } catch (err) {
+      console.error("Download failed", err, "File object was:", file);
+      alert("Download failed. Please try again.");
+    }
+  };
 
   const resetForm = () => {
     setFormData({
-      title: '',
-      type: 'grammar',
-      language: 'english',
-      description: '',
-      content: ''
+      title: "",
+      type: "grammar",
+      language: "english",
+      description: "",
+      content: "",
     });
     setUploadedFiles([]);
     setEditingMaterial(null);
@@ -259,6 +297,23 @@ const downloadFile = (file: UploadedFile | FileObject) => {
   useEffect(() => {
     fetchMaterials();
   }, [token]);
+
+  // Debug: log materials structure
+  useEffect(() => {
+    if (materials.length > 0) {
+      console.log("All materials:", materials);
+      materials.forEach((material, index) => {
+        console.log(`Material ${index}: ${material.title}`);
+        if (material.files && material.files.length > 0) {
+          console.log("Files in this material:", material.files);
+          material.files.forEach((file, fileIndex) => {
+            console.log(`File ${fileIndex} properties:`, Object.keys(file));
+            console.log(`File ${fileIndex} values:`, file);
+          });
+        }
+      });
+    }
+  }, [materials]);
 
   return (
     <div className="space-y-6">
@@ -271,10 +326,13 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                 Upload and manage grammar notes, templates, and PTE tips
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button onClick={resetForm}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -284,10 +342,14 @@ const downloadFile = (file: UploadedFile | FileObject) => {
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingMaterial ? 'Edit Learning Material' : 'Upload Learning Material'}
+                    {editingMaterial
+                      ? "Edit Learning Material"
+                      : "Upload Learning Material"}
                   </DialogTitle>
                   <DialogDescription>
-                    {editingMaterial ? 'Update the learning material' : 'Add new learning materials for students'}
+                    {editingMaterial
+                      ? "Update the learning material"
+                      : "Add new learning materials for students"}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -296,14 +358,24 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                     <Input
                       id="title"
                       value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          title: e.target.value,
+                        }))
+                      }
                       required
                       className="mt-1"
                     />
                   </div>
                   <div>
                     <Label htmlFor="type">Material Type</Label>
-                    <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, type: value }))
+                      }
+                    >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select material type" />
                       </SelectTrigger>
@@ -316,7 +388,12 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                   </div>
                   <div>
                     <Label htmlFor="language">Language</Label>
-                    <Select value={formData.language} onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}>
+                    <Select
+                      value={formData.language}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, language: value }))
+                      }
+                    >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select language" />
                       </SelectTrigger>
@@ -332,7 +409,12 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                     <Textarea
                       id="description"
                       value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
                       className="mt-1"
                       rows={3}
                     />
@@ -342,7 +424,12 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                     <Textarea
                       id="content"
                       value={formData.content}
-                      onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          content: e.target.value,
+                        }))
+                      }
                       className="mt-1"
                       rows={4}
                       placeholder="Add text content here..."
@@ -366,13 +453,20 @@ const downloadFile = (file: UploadedFile | FileObject) => {
 
                     {uploadedFiles.length > 0 && (
                       <div className="mt-3 space-y-2 max-h-40 overflow-auto">
-                        <Label className="text-sm font-medium">Uploaded Files:</Label>
+                        <Label className="text-sm font-medium">
+                          Uploaded Files:
+                        </Label>
                         {uploadedFiles.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <div
+                            key={index}
+                            className="flex items-center justify-between bg-gray-50 p-2 rounded"
+                          >
                             <div className="flex items-center min-w-0">
                               <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
                               <span className="text-sm truncate">
-                                {file.originalName || file.filename || 'Unknown file'}
+                                {file.originalName ||
+                                  file.filename ||
+                                  "Unknown file"}
                               </span>
                             </div>
                             <div className="flex gap-2">
@@ -398,8 +492,18 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                       </div>
                     )}
                   </div>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? <LoadingSpinner size="sm" /> : editingMaterial ? 'Update Material' : 'Upload Material'}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <LoadingSpinner size="sm" />
+                    ) : editingMaterial ? (
+                      "Update Material"
+                    ) : (
+                      "Upload Material"
+                    )}
                   </Button>
                 </form>
               </DialogContent>
@@ -424,7 +528,9 @@ const downloadFile = (file: UploadedFile | FileObject) => {
               <TableBody>
                 {materials.map((material) => (
                   <TableRow key={material._id}>
-                    <TableCell className="font-medium max-w-xs truncate">{material.title}</TableCell>
+                    <TableCell className="font-medium max-w-xs truncate">
+                      {material.title}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{material.type}</Badge>
                     </TableCell>
@@ -439,8 +545,8 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleEdit(material)}
                         >
@@ -458,12 +564,15 @@ const downloadFile = (file: UploadedFile | FileObject) => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the material.
+                                This action cannot be undone. This will
+                                permanently delete the material.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(material._id)}>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(material._id)}
+                              >
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
