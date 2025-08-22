@@ -15,22 +15,27 @@ export async function GET(
     const originalName = url.searchParams.get("originalName") || filename;
     const cloudinaryUrl = url.searchParams.get("url");
 
-    // ✅ Auto-detect Cloudinary files
+    // ✅ 1. Cloudinary files (preferred in production)
     if (
       (cloudinaryUrl && cloudinaryUrl.includes("cloudinary.com")) ||
       filename.includes("cloudinary")
     ) {
-      // Add download flag to force attachment
       let downloadUrl = cloudinaryUrl || filename;
-      if (downloadUrl.includes("cloudinary.com") && !downloadUrl.includes("fl_attachment")) {
+
+      // Force attachment download if it’s a Cloudinary URL
+      if (
+        downloadUrl.includes("cloudinary.com") &&
+        !downloadUrl.includes("fl_attachment")
+      ) {
         downloadUrl = downloadUrl.includes("?")
           ? `${downloadUrl}&fl_attachment=${encodeURIComponent(originalName)}`
           : `${downloadUrl}?fl_attachment=${encodeURIComponent(originalName)}`;
       }
+
       return NextResponse.redirect(downloadUrl);
     }
 
-    // ✅ Otherwise, try to serve from local uploads
+    // ✅ 2. Local file fallback (works in dev, not on Vercel)
     const CANDIDATE_UPLOAD_DIRS = [
       path.join(process.cwd(), "uploads"),
       path.join(process.cwd(), "project", "uploads"),
@@ -46,7 +51,7 @@ export async function GET(
         filePath = p;
         break;
       } catch {
-        // continue searching
+        // keep searching
       }
     }
 
@@ -54,12 +59,11 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Read file
+    // ✅ 3. Serve local file (dev only)
     const stats = await fsp.stat(filePath);
     const fileSize = stats.size;
     const fileBuffer = await fsp.readFile(filePath);
 
-    // Detect type
     const getContentType = (filename: string) => {
       const ext = path.extname(filename).toLowerCase();
       const contentTypes: { [key: string]: string } = {
@@ -77,7 +81,6 @@ export async function GET(
       return contentTypes[ext] || "application/octet-stream";
     };
 
-    // Stream response
     const readableStream = new ReadableStream({
       start(controller) {
         controller.enqueue(fileBuffer);
@@ -98,6 +101,9 @@ export async function GET(
     });
   } catch (error) {
     console.error("Download error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
