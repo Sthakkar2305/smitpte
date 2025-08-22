@@ -202,11 +202,40 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   };
 
   const downloadFile = (file: UploadedFile) => {
-    if (file.url) {
-      window.open(file.url, '_blank');
-    } else if (file.filename) {
-      const downloadUrl = `/api/download/${file.filename}?originalName=${encodeURIComponent(file.originalName)}`;
-      window.open(downloadUrl, '_blank');
+    try {
+      const isAbsoluteHttp = (u?: string) => !!u && /^https?:\/\//i.test(u);
+      const isRootRelative = (u?: string) => !!u && u.startsWith('/');
+
+      // Absolute URLs (e.g., Cloudinary)
+      if (isAbsoluteHttp(file.url)) {
+        window.open(file.url, '_blank');
+        return;
+      }
+
+      // Root-relative URLs (e.g., /uploads/filename.ext)
+      if (isRootRelative(file.url)) {
+        window.open(file.url, '_blank');
+        return;
+      }
+
+      // Filename only → use API
+      if (file.filename) {
+        const apiUrl = `/api/download/${encodeURIComponent(file.filename)}?originalName=${encodeURIComponent(file.originalName)}`;
+        window.open(apiUrl, '_blank');
+        return;
+      }
+
+      // Fallback: relative without leading slash (e.g., 'uploads/x.pdf')
+      if (file.url) {
+        const normalized = file.url.startsWith('uploads/') ? `/${file.url}` : file.url;
+        window.open(normalized, '_blank');
+        return;
+      }
+
+      throw new Error('No valid file information available');
+    } catch (err) {
+      console.error('Download failed', err);
+      alert('Download failed. Please try again.');
     }
   };
 
@@ -337,7 +366,9 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
                           <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                             <div className="flex items-center min-w-0">
                               <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
-                              <span className="text-sm truncate">{file.originalName}</span>
+                              <span className="text-sm truncate">
+                                {file.originalName || file.filename || 'Unknown file'}
+                              </span>
                             </div>
                             <div className="flex gap-2">
                               <Button

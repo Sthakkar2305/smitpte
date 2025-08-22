@@ -12,6 +12,8 @@ const CANDIDATE_UPLOAD_DIRS = [
   path.join(process.cwd(), 'uploads'),
   // When process.cwd() is the workspace root (e.g., pte)
   path.join(process.cwd(), 'project', 'uploads'),
+  // Absolute path fallback
+  path.join(__dirname, '..', '..', '..', 'uploads'),
   // Fallback tmp (used by some hosts)
   '/tmp',
 ];
@@ -22,18 +24,45 @@ export async function GET(
 ) {
   const { filename } = params;
   
+  // Debug endpoint: if filename is "debug", return list of available files
+  if (filename === 'debug') {
+    try {
+      const debugDir = path.join(process.cwd(), 'project', 'uploads');
+      const files = await fsp.readdir(debugDir);
+      return NextResponse.json({ 
+        message: 'Available files',
+        files,
+        cwd: process.cwd(),
+        debugDir
+      });
+    } catch (error) {
+      return NextResponse.json({ 
+        error: 'Cannot read uploads directory',
+        cwd: process.cwd()
+      });
+    }
+  }
+  
   try {
+    console.log('Download request for filename:', filename);
+    console.log('Current working directory:', process.cwd());
+    
     let filePath: string | null = null;
     for (const dir of CANDIDATE_UPLOAD_DIRS) {
       const p = path.join(dir, filename);
+      console.log('Checking path:', p);
       try {
         await fsp.access(p);
         filePath = p;
+        console.log('File found at:', p);
         break;
-      } catch {}
+      } catch (err) {
+        console.log('File not found at:', p);
+      }
     }
 
     if (!filePath) {
+      console.log('File not found in any directory');
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
