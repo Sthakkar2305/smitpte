@@ -236,64 +236,68 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   };
 const downloadFile = async (file: FileData) => {
   try {
-    console.log('File object received:', file);
-    
+    console.log("File object received:", file);
+
     // Handle different property names
-    const originalName = file.originalName || file.originalname || file.filename || 'download';
-    const fileName = file.filename || file.originalName || file.originalname || 'file';
+    const originalName =
+      file.originalName || file.originalname || file.filename || "download";
+    const fileName =
+      file.filename || file.originalName || file.originalname || "file";
     const fileUrl = file.url || file.path;
 
-    // Check if this is a Cloudinary file by looking for Cloudinary URL patterns
-    // OR check if the file has a Cloudinary publicId but no local URL
-    const isCloudinaryFile = fileUrl && (
-      fileUrl.includes('cloudinary.com') || 
-      fileUrl.includes('res.cloudinary.com') ||
-      (file.publicId && !fileUrl.includes('/uploads/')) // If it has publicId but not a local path
-    );
+    // ✅ Detect Cloudinary files
+    const isCloudinaryFile =
+      fileUrl &&
+      (fileUrl.includes("cloudinary.com") ||
+        fileUrl.includes("res.cloudinary.com") ||
+        (file.publicId && !fileUrl.includes("/uploads/")));
 
-    // If it's a Cloudinary file (or we suspect it is)
     if (isCloudinaryFile) {
-      console.log('Cloudinary file detected, opening URL:', fileUrl);
-      
-      // For Cloudinary files, we can add a download flag to force download instead of preview
+      console.log("Cloudinary file detected, opening URL:", fileUrl);
+
+      // Force download instead of preview
       let downloadUrl = fileUrl;
-      if (fileUrl.includes('cloudinary.com') && !fileUrl.includes('fl_attachment')) {
-        // Add flags=attachment to force download
-        downloadUrl = fileUrl.includes('?') 
-          ? `${fileUrl}&fl_attachment` 
-          : `${fileUrl}?fl_attachment`;
+      if (
+        fileUrl.includes("cloudinary.com") &&
+        !fileUrl.includes("fl_attachment")
+      ) {
+        downloadUrl = fileUrl.includes("?")
+          ? `${fileUrl}&fl_attachment=${encodeURIComponent(originalName)}`
+          : `${fileUrl}?fl_attachment=${encodeURIComponent(originalName)}`;
       }
-      
-      window.open(downloadUrl, '_blank');
+
+      window.open(downloadUrl, "_blank");
       return;
     }
-    
-    // For local files with filename - check if it exists via API first
+
+    // ✅ Handle local files
     if (fileName) {
-      console.log('Local file detected, using download API');
-      
-      // First check if the file exists by making a HEAD request
+      console.log("Local file detected, using download API");
+
       try {
-        const checkResponse = await fetch(`/api/download/${encodeURIComponent(fileName)}`, {
-          method: 'HEAD'
-        });
-        
+        const checkResponse = await fetch(
+          `/api/download/${encodeURIComponent(fileName)}`,
+          { method: "HEAD" }
+        );
+
         if (checkResponse.ok) {
-          const apiUrl = `/api/download/${encodeURIComponent(fileName)}?originalName=${encodeURIComponent(originalName)}`;
-          window.open(apiUrl, '_blank');
+          const apiUrl = `/api/download/${encodeURIComponent(
+            fileName
+          )}?originalName=${encodeURIComponent(originalName)}`;
+          window.open(apiUrl, "_blank");
         } else {
-          // If local file doesn't exist, but we have a URL, try that
+          // If local file doesn't exist, fallback to direct URL if available
           if (fileUrl) {
-            console.log('Local file not found, trying URL instead:', fileUrl);
-            window.open(fileUrl, '_blank');
+            console.log("Local file not found, trying URL instead:", fileUrl);
+            window.open(fileUrl, "_blank");
           } else {
-            throw new Error('Local file not found and no URL available');
+            throw new Error("Local file not found and no URL available");
           }
         }
       } catch (error) {
-        console.log('Error checking file, trying URL instead');
+        console.log("Error checking file, trying URL instead");
         if (fileUrl) {
-          window.open(fileUrl, '_blank');
+          window.open(fileUrl, "_blank");
         } else {
           throw error;
         }
@@ -301,20 +305,15 @@ const downloadFile = async (file: FileData) => {
       return;
     }
 
-    // Fallback: if we only have a URL/path, try to open it
-    if (fileUrl) {
-      console.log('Fallback: opening URL/path directly');
-      window.open(fileUrl, '_blank');
-      return;
-    }
-
-    console.error('No valid file information available in:', file);
-    throw new Error('No valid file information available');
+    // ❌ No usable file info
+    console.error("No valid file information available in:", file);
+    throw new Error("No valid file information available");
   } catch (err) {
-    console.error('Download failed', err, 'File object was:', file);
-    alert('Download failed. Please try again.');
+    console.error("Download failed", err, "File object was:", file);
+    alert("Download failed. Please try again.");
   }
 };
+
   const resetForm = () => {
     setFormData({
       title: "",
