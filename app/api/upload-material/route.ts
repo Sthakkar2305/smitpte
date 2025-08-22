@@ -52,27 +52,29 @@ export async function POST(req: NextRequest) {
     // Determine the correct resource_type before uploading
     const resourceType = getResourceType(file.type);
 
-    const uploaded: UploadApiResponse = await new Promise(
-      (resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: resourceType, // This will now be a valid type
-            folder: "pte-materials",
-            public_id: file.name.split('.').slice(0, -1).join('.'),
-            use_filename: true,
-            unique_filename: true,
-          },
-          (
-            error: UploadApiErrorResponse | undefined,
-            result: UploadApiResponse | undefined
-          ) => {
-            if (error || !result) reject(error);
-            else resolve(result);
-          }
-        );
-        stream.end(buffer);
+   // In your route.ts file, update the upload configuration:
+const uploaded: UploadApiResponse = await new Promise(
+  (resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: resourceType,
+        folder: "pte-materials",
+        // Preserve the original filename with extension
+        use_filename: true,
+        unique_filename: false, // Set to false to keep original name
+        overwrite: false, // Don't overwrite existing files
+      },
+      (
+        error: UploadApiErrorResponse | undefined,
+        result: UploadApiResponse | undefined
+      ) => {
+        if (error || !result) reject(error);
+        else resolve(result);
       }
     );
+    stream.end(buffer);
+  }
+);
     
     const result = {
       originalName: file.name,

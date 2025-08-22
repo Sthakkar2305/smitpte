@@ -238,27 +238,40 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 const downloadFile = async (file: FileData) => {
-  // 1. Ensure a URL exists in the file data
   if (!file.url) {
     console.error("Download failed: File object is missing a URL.", file);
-    alert(
-      "This file cannot be downloaded because its URL is missing. Please re-upload it or contact support."
-    );
+    alert("This file cannot be downloaded because its URL is missing.");
     return;
   }
 
-  // 2. Determine the original name, checking for common property names
-  const originalName =
-    file.originalName || file.originalname || file.filename || "download";
-
   try {
-    // 3. Construct a proper download URL for Cloudinary that forces download
-    const downloadUrl = file.url.includes("?")
-      ? `${file.url}&fl_attachment=${encodeURIComponent(originalName)}`
-      : `${file.url}?fl_attachment=${encodeURIComponent(originalName)}`;
-
-    // 4. Open the URL in a new tab to start the download
-    window.open(downloadUrl, "_blank");
+    // Fetch the file as a blob
+    const response = await fetch(file.url);
+    const blob = await response.blob();
+    
+    // Create a blob URL
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // Determine filename with extension
+    const originalName = file.originalName || file.originalname || file.filename || "download";
+    const fileExtension = originalName.includes('.') 
+      ? originalName.split('.').pop() 
+      : (file.mimetype?.split('/')[1] || '');
+    
+    const filename = fileExtension 
+      ? `${originalName.split('.')[0]}.${fileExtension}`
+      : originalName;
+    
+    // Create download link and trigger click
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up
+    URL.revokeObjectURL(blobUrl);
   } catch (err) {
     console.error("Download failed", err, "File object was:", file);
     alert("An error occurred while trying to download the file.");
