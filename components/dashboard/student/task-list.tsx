@@ -245,6 +245,7 @@ export default function TaskList({ token }: TaskListProps) {
               const submissionStatus = getSubmissionStatus(task._id);
               const submission = getSubmission(task._id);
               const overdue = isTaskOverdue(task.deadline);
+              const feedbackText = submission?.feedback?.text || "";
 
               return (
                 <Card key={task._id} className="border-l-4 border-l-blue-500">
@@ -282,44 +283,24 @@ export default function TaskList({ token }: TaskListProps) {
                           </p>
                         )}
 
-                        {submission?.feedback?.text && (
+                        {feedbackText && (
                           <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
                             <h4 className="font-medium text-xs sm:text-sm text-blue-900">
                               Teacher Feedback:
                             </h4>
                             <p className="text-xs sm:text-sm text-blue-800 mt-1 line-clamp-2">
-                              {submission.feedback.text}
+                              {feedbackText}
                             </p>
-                           {submission?.feedback?.text && (
-  <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
-    <h4 className="font-medium text-xs sm:text-sm text-blue-900">
-      Teacher Feedback:
-    </h4>
-    <p className="text-xs sm:text-sm text-blue-800 mt-1 line-clamp-2">
-      {submission.feedback.text}
-    </p>
-
-    {/* Button to view full feedback */}
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="link" className="text-xs text-blue-700 p-0 h-auto">
-          View Full Feedback
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Teacher Feedback</DialogTitle>
-        </DialogHeader>
-        <div className="p-2">
-          <p className="text-sm text-gray-800 whitespace-pre-wrap">
-            {submission.feedback.text}
-          </p>
-        </div>
-      </DialogContent>
-    </Dialog>
-  </div>
-)}
-
+                            {feedbackText.length > 60 && (
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto text-xs text-blue-600 mt-1"
+                                onClick={() => handleViewFeedback(feedbackText)}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View full feedback
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -350,8 +331,8 @@ export default function TaskList({ token }: TaskListProps) {
                                 Submit Work
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl mx-2 sm:mx-0 max-h-[90vh] overflow-hidden flex flex-col">
-                              <DialogHeader>
+                            <DialogContent className="max-w-2xl mx-2 sm:mx-0 h-[90vh] flex flex-col">
+                              <DialogHeader className="flex-shrink-0">
                                 <DialogTitle className="text-lg sm:text-xl">
                                   Submit Task: {task.title}
                                 </DialogTitle>
@@ -448,7 +429,7 @@ export default function TaskList({ token }: TaskListProps) {
                                   />
                                 </div>
                               </div>
-                              <div className="pt-4 border-t">
+                              <div className="pt-4 border-t flex-shrink-0">
                                 <Button
                                   onClick={() =>
                                     selectedTask &&

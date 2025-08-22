@@ -15,7 +15,8 @@ import {
   X,
   UserPlus,
   ClipboardList,
-  TrendingUp
+  TrendingUp,
+  Languages
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -42,6 +43,7 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }: Si
     { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { key: 'tasks', label: 'My Tasks', icon: CheckSquare },
     { key: 'learning', label: 'Learning Center', icon: BookOpen },
+    { key: 'grammar', label: 'Grammar Guide', icon: Languages },
     { key: 'progress', label: 'My Progress', icon: TrendingUp },
   ];
 
