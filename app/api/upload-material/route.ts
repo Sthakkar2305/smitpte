@@ -14,6 +14,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
+// Helper function to determine Cloudinary resource type from MIME type
+const getResourceType = (mimetype: string): "image" | "video" | "raw" => {
+  if (mimetype.startsWith("image/")) return "image";
+  if (mimetype.startsWith("video/")) return "video";
+  // ✅ FIX: Classify audio as 'video' to satisfy the older type definition.
+  // Cloudinary will still process it correctly as an audio file.
+  if (mimetype.startsWith("audio/")) return "video"; 
+  return "raw"; // Default for PDFs, DOCs, etc.
+};
+
+
 export async function POST(req: NextRequest) {
   try {
     // Check authentication
@@ -28,63 +39,52 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    // Get files from formData
     const formData = await req.formData();
-    const files = formData.getAll("file") as File[];
+    const file = formData.get("file") as File | null;
 
-    if (!files || files.length === 0) {
+    if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const results: {
-      originalName: string;
-      filename: string;
-      url: string;
-      publicId: string;
-      size: number;
-      mimetype: string;
-    }[] = [];
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    for (const file of files) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+    // Determine the correct resource_type before uploading
+    const resourceType = getResourceType(file.type);
 
-      const uploaded: UploadApiResponse = await new Promise(
-        (resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream(
-              {
-                resource_type: "auto",
-                folder: "pte-materials",
-                use_filename: true,
-                unique_filename: true,
-              },
-              (
-                error: UploadApiErrorResponse | undefined,
-                result: UploadApiResponse | undefined
-              ) => {
-                if (error || !result) reject(error);
-                else resolve(result);
-              }
-            )
-            .end(buffer);
-        }
-      );
+    const uploaded: UploadApiResponse = await new Promise(
+      (resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: resourceType, // This will now be a valid type
+            folder: "pte-materials",
+            public_id: file.name.split('.').slice(0, -1).join('.'),
+            use_filename: true,
+            unique_filename: true,
+          },
+          (
+            error: UploadApiErrorResponse | undefined,
+            result: UploadApiResponse | undefined
+          ) => {
+            if (error || !result) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(buffer);
+      }
+    );
+    
+    const result = {
+      originalName: file.name,
+      filename: uploaded.public_id,
+      url: uploaded.secure_url,
+      publicId: uploaded.public_id,
+      size: uploaded.bytes,
+      mimetype: file.type || uploaded.resource_type,
+    };
 
-      results.push({
-        originalName: file.name,
-        filename: uploaded.public_id,
-        url: uploaded.secure_url, // ✅ This is the Cloudinary link
-        publicId: uploaded.public_id,
-        size: uploaded.bytes,
-        mimetype:
-          uploaded.resource_type === "image"
-            ? `image/${uploaded.format}`
-            : uploaded.resource_type,
-      });
-    }
+    return NextResponse.json([result]);
 
-    return NextResponse.json(results);
   } catch (error) {
     console.error("Material upload error:", error);
     return NextResponse.json(
