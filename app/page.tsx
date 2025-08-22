@@ -12,6 +12,7 @@ import SubmissionsReview from '@/components/dashboard/admin/submissions-review';
 import TaskList from '@/components/dashboard/student/task-list';
 import LearningCenter from '@/components/dashboard/student/learning-center';
 import ProgressReport from '@/components/dashboard/student/progress-report';
+import GrammarGuide from '@/components/dashboard/student/grammer-guide';
 
 // Type for user
 type User = {
