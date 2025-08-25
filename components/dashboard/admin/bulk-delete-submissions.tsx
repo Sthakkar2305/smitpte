@@ -8,8 +8,24 @@ import { Trash2, Loader2 } from "lucide-react";
 
 interface Submission {
   _id: string;
-  student?: { name: string };
-  task?: { title: string };
+  student?: {
+    name?: string; // Make name optional
+  };
+  task?: {
+    title?: string; // Make title optional
+    description?: string;
+    type?: string;
+  };
+  status: string;
+  submittedAt: string;
+  feedback?: {
+    text?: string;
+  };
+  notes?: string;
+  files?: {
+    originalName: string;
+    url: string;
+  }[];
 }
 
 interface BulkDeleteSubmissionsProps {

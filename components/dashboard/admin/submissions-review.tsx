@@ -31,14 +31,15 @@ import { Eye, CheckCircle, XCircle, FileText } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { BulkDeleteSubmissions } from "@/components/dashboard/admin/bulk-delete-submissions";
 
+
 // Update the interface to match what BulkDeleteSubmissions expects
 interface Submission {
   _id: string;
   student?: {
-    name: string; // Changed from name?: string to name: string
+    name?: string; // Make name optional
   };
   task?: {
-    title: string; // Changed from title?: string to title: string
+    title?: string; // Make title optional
     description?: string;
     type?: string;
   };
@@ -67,25 +68,28 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
 
-  const fetchSubmissions = async () => {
-    try {
-      const response = await fetch("/api/submissions", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSubmissions(data);
-      } else {
-        console.error("Failed to fetch submissions:", response.status);
-      }
-    } catch (error) {
-      console.error("Error fetching submissions:", error);
-    } finally {
-      setLoading(false);
+ const fetchSubmissions = async () => {
+  try {
+    const response = await fetch("/api/submissions", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      // Fix: Extract the submissions array from the response
+      setSubmissions(data.submissions || []);
+    } else {
+      console.error("Failed to fetch submissions:", response.status);
+      setSubmissions([]); // Set to empty array on error
     }
-  };
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    setSubmissions([]); // Set to empty array on error
+  } finally {
+    setLoading(false);
+  }
+};
 
   const updateSubmissionStatus = async (
     submissionId: string,
@@ -180,7 +184,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {submissions.map((submission) => (
+                  {Array.isArray(submissions) && submissions.map((submission) => (
                     <TableRow key={submission._id}>
                       <TableCell className="font-medium">
                         {submission.student?.name || "Unknown Student"}
@@ -339,7 +343,7 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
               </Dialog>
             </>
           )}
-          {submissions.length === 0 && !loading && (
+          {Array.isArray(submissions) && submissions.length === 0 && !loading && (
             <div className="text-center py-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4" />
               <p>No submissions found</p>
