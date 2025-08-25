@@ -5,6 +5,7 @@ import Task from "@/models/Task";
 import User from "@/models/User";
 import { verifyToken, getTokenFromHeaders } from "@/utils/auth";
 
+// In your /api/submissions route.ts
 export async function GET(request: Request) {
   try {
     await connectDB();
@@ -15,21 +16,44 @@ export async function GET(request: Request) {
     const decoded = verifyToken(token);
     if (!decoded) return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
+    // Get pagination parameters from URL
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
+
     let submissions;
+    let total;
+    
     if (decoded.role === "admin") {
       submissions = await Submission.find({})
         .populate("task", "title type")
         .populate("student", "name email")
         .populate("feedback.reviewedBy", "name")
-        .sort({ submittedAt: -1 });
+        .sort({ submittedAt: -1 })
+        .skip(skip)
+        .limit(limit);
+      
+      total = await Submission.countDocuments({});
     } else {
       submissions = await Submission.find({ student: decoded.userId })
         .populate("task", "title type")
         .populate("feedback.reviewedBy", "name")
-        .sort({ submittedAt: -1 });
+        .sort({ submittedAt: -1 })
+        .skip(skip)
+        .limit(limit);
+      
+      total = await Submission.countDocuments({ student: decoded.userId });
     }
 
-    return NextResponse.json(submissions);
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      submissions,
+      currentPage: page,
+      totalPages,
+      totalSubmissions: total
+    });
   } catch (error) {
     console.error("Get submissions error:", error);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
@@ -55,6 +79,32 @@ export async function POST(request: Request) {
     const task = await Task.findById(taskId);
     if (!task) {
       return NextResponse.json({ message: "Task not found" }, { status: 404 });
+    }
+
+    // Check if deadline has passed
+    if (task.deadline && new Date(task.deadline) < new Date()) {
+      // Create a rejected submission automatically
+      const rejectedSubmission = new Submission({
+        task: taskId,
+        student: decoded.userId,
+        notes: "Automatic rejection: Deadline passed",
+        files: files || [],
+        status: "rejected",
+        feedback: {
+          text: "Your submission was automatically rejected because the deadline has passed.",
+          reviewedBy: "system",
+          reviewedAt: new Date(),
+        }
+      });
+
+      await rejectedSubmission.save();
+      await rejectedSubmission.populate("task", "title type");
+
+      return NextResponse.json({ 
+        message: "Submission deadline has passed",
+        submission: rejectedSubmission,
+        status: "rejected" 
+      }, { status: 400 });
     }
 
     const submission = new Submission({

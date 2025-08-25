@@ -5,24 +5,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, CheckCircle, Clock, XCircle, Target } from 'lucide-react';
+import { TrendingUp, CheckCircle, Clock, XCircle, Target, Calendar } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 // ****** Typed interfaces ******
 type Status = 'approved' | 'pending' | 'rejected' | 'Unknown';
 interface SubmissionTask {
+  _id: string;
   type?: string;
+  deadline?: string;
 }
 interface Submission {
+  _id: string;
   task?: SubmissionTask;
   status: Status;
   submittedAt: string;
 }
+interface Task {
+  _id: string;
+  title: string;
+  type: string;
+  deadline?: string;
+  assignedTo: string[];
+}
+
 interface Stats {
   assignedTasks: number;
   completedTasks: number;
   pendingTasks: number;
   rejectedTasks: number;
+  overdueTasks: number;
 }
 
 interface ProgressReportProps {
@@ -34,6 +46,7 @@ const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6B7280'];
 export default function ProgressReport({ token }: ProgressReportProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch stats
@@ -67,19 +80,73 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       }
     } catch (error) {
       console.error('Error fetching submissions:', error);
+    }
+  };
+
+  // Fetch tasks
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch('/api/tasks', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTasks(data);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate stats by task type
+  // Check if task is overdue (deadline passed without submission)
+  const isTaskOverdue = (task: Task): boolean => {
+    if (!task.deadline) return false;
+    return new Date(task.deadline) < new Date();
+  };
+
+  // Check if task has a submission
+  const hasSubmission = (taskId: string): boolean => {
+    return submissions.some(submission => submission.task?._id === taskId);
+  };
+
+  // Calculate stats including overdue tasks as rejected
+  const calculateEnhancedStats = (): Stats => {
+    const baseStats = {
+      assignedTasks: tasks.length,
+      completedTasks: submissions.filter(s => s.status === 'approved').length,
+      pendingTasks: submissions.filter(s => s.status === 'pending').length,
+      rejectedTasks: submissions.filter(s => s.status === 'rejected').length,
+      overdueTasks: 0
+    };
+
+    // Count overdue tasks (tasks with deadline passed and no submission)
+    const overdueCount = tasks.filter(task => {
+      if (!task.deadline) return false;
+      const isOverdue = new Date(task.deadline) < new Date();
+      const hasSub = hasSubmission(task._id);
+      return isOverdue && !hasSub;
+    }).length;
+
+    return {
+      ...baseStats,
+      overdueTasks: overdueCount,
+      rejectedTasks: baseStats.rejectedTasks + overdueCount
+    };
+  };
+
+  // Calculate stats by task type including overdue tasks
   const getTaskTypeStats = () => {
-    // Use safer typing: Record<string, {approved: number; pending: number; rejected: number}>
-    const taskTypes: Record<string, { approved: number; pending: number; rejected: number }> = {};
+    const taskTypes: Record<string, { approved: number; pending: number; rejected: number; overdue: number }> = {};
+    
+    // Process submissions
     submissions.forEach((submission) => {
       const type = submission.task?.type || 'Unknown';
       if (!taskTypes[type]) {
-        taskTypes[type] = { approved: 0, pending: 0, rejected: 0 };
+        taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
       }
       if (
         submission.status === 'approved' ||
@@ -89,18 +156,31 @@ export default function ProgressReport({ token }: ProgressReportProps) {
         taskTypes[type][submission.status]++;
       }
     });
+
+    // Process overdue tasks (no submission, deadline passed)
+    tasks.forEach(task => {
+      if (task.deadline && new Date(task.deadline) < new Date() && !hasSubmission(task._id)) {
+        const type = task.type || 'Unknown';
+        if (!taskTypes[type]) {
+          taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
+        }
+        taskTypes[type].overdue++;
+        taskTypes[type].rejected++; // Count overdue as rejected
+      }
+    });
+
     return Object.entries(taskTypes).map(([type, counts]) => ({
       type,
       approved: counts.approved,
       pending: counts.pending,
       rejected: counts.rejected,
+      overdue: counts.overdue,
       total: counts.approved + counts.pending + counts.rejected,
     }));
   };
 
   // Weekly progress
   const getWeeklyProgress = () => {
-    // Record week name -> stats
     const weeks: Record<string, { submitted: number; approved: number }> = {};
     const now = new Date();
 
@@ -136,24 +216,25 @@ export default function ProgressReport({ token }: ProgressReportProps) {
 
   // Overall progress
   const getOverallProgress = () => {
-    if (!stats) return 0;
-    const total = stats.completedTasks + stats.pendingTasks + stats.rejectedTasks;
-    return total > 0 ? Math.round((stats.completedTasks / total) * 100) : 0;
+    const enhancedStats = calculateEnhancedStats();
+    const total = enhancedStats.completedTasks + enhancedStats.pendingTasks + enhancedStats.rejectedTasks;
+    return total > 0 ? Math.round((enhancedStats.completedTasks / total) * 100) : 0;
   };
 
   // Pie chart data
   const getPieChartData = () => {
-    if (!stats) return [];
+    const enhancedStats = calculateEnhancedStats();
     return [
-      { name: 'Completed', value: stats.completedTasks, color: '#10B981' },
-      { name: 'Pending', value: stats.pendingTasks, color: '#F59E0B' },
-      { name: 'Rejected', value: stats.rejectedTasks, color: '#EF4444' },
+      { name: 'Completed', value: enhancedStats.completedTasks, color: '#10B981' },
+      { name: 'Pending', value: enhancedStats.pendingTasks, color: '#F59E0B' },
+      { name: 'Rejected', value: enhancedStats.rejectedTasks, color: '#EF4444' },
     ].filter(item => item.value > 0);
   };
 
   useEffect(() => {
     fetchStats();
     fetchSubmissions();
+    fetchTasks();
     // eslint-disable-next-line
   }, []);
 
@@ -170,6 +251,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     );
   }
 
+  const enhancedStats = calculateEnhancedStats();
   const taskTypeStats = getTaskTypeStats();
   const weeklyProgress = getWeeklyProgress();
   const overallProgress = getOverallProgress();
@@ -178,13 +260,13 @@ export default function ProgressReport({ token }: ProgressReportProps) {
   return (
     <div className="space-y-4 md:space-y-6 p-2 sm:p-4">
       {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
         <Card className="w-full">
           <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Assigned Tasks</p>
-                <p className="text-xl sm:text-2xl font-bold">{stats?.assignedTasks || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold">{enhancedStats.assignedTasks || 0}</p>
               </div>
               <Target className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             </div>
@@ -195,7 +277,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-600">{stats?.completedTasks || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{enhancedStats.completedTasks || 0}</p>
               </div>
               <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
@@ -206,7 +288,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats?.pendingTasks || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{enhancedStats.pendingTasks || 0}</p>
               </div>
               <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
             </div>
@@ -217,9 +299,20 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Rejected</p>
-                <p className="text-xl sm:text-2xl font-bold text-red-600">{stats?.rejectedTasks || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-600">{enhancedStats.rejectedTasks || 0}</p>
               </div>
               <XCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="w-full">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Overdue</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-600">{enhancedStats.overdueTasks || 0}</p>
+              </div>
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
             </div>
           </CardContent>
         </Card>
@@ -241,6 +334,9 @@ export default function ProgressReport({ token }: ProgressReportProps) {
               <span className="text-xl sm:text-2xl font-bold">{overallProgress}%</span>
             </div>
             <Progress value={overallProgress} className="h-2 sm:h-3" />
+            <div className="text-xs text-gray-500">
+              Includes overdue tasks as rejected in calculations
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -326,6 +422,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
                   {taskType.rejected > 0 && (
                     <Badge className="bg-red-100 text-red-800 text-xs">
                       {taskType.rejected} rejected
+                      {taskType.overdue > 0 && ` (${taskType.overdue} overdue)`}
                     </Badge>
                   )}
                 </div>

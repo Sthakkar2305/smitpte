@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
-  Users, 
-  FileText, 
-  Upload, 
-  BarChart3, 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  Users,
+  FileText,
+  Upload,
+  BarChart3,
   CheckSquare,
   GraduationCap,
   LogOut,
@@ -16,8 +16,10 @@ import {
   UserPlus,
   ClipboardList,
   TrendingUp,
-  Languages
-} from 'lucide-react';
+  Languages,
+  // You might want to use a different icon, e.g., History or Clock
+  History,
+} from "lucide-react";
 
 interface SidebarProps {
   user: any;
@@ -26,28 +28,35 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-export default function Sidebar({ user, activeView, onViewChange, onLogout }: SidebarProps) {
+export default function Sidebar({
+  user,
+  activeView,
+  onViewChange,
+  onLogout,
+}: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const adminMenuItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { key: 'students', label: 'Students', icon: Users },
-    { key: 'teachers', label: 'Teachers', icon: UserPlus },
-    { key: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { key: 'submissions', label: 'Submissions', icon: ClipboardList },
-    { key: 'materials', label: 'Materials', icon: Upload },
+    { key: "dashboard", label: "Dashboard", icon: BarChart3 },
+    { key: "students", label: "Students", icon: Users },
+    { key: "teachers", label: "Teachers", icon: UserPlus },
+    { key: "tasks", label: "Tasks", icon: CheckSquare },
+    { key: "submissions", label: "Submissions", icon: ClipboardList },
+    { key: "materials", label: "Materials", icon: Upload },
   ];
 
   const studentMenuItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { key: 'tasks', label: 'My Tasks', icon: CheckSquare },
-    { key: 'learning', label: 'Learning Center', icon: BookOpen },
-    { key: 'grammar', label: 'Grammar Guide', icon: Languages },
-    { key: 'progress', label: 'My Progress', icon: TrendingUp },
+    { key: "dashboard", label: "Dashboard", icon: BarChart3 },
+    { key: "tasks", label: "My Tasks", icon: CheckSquare },
+    { key: "learning", label: "Learning Center", icon: BookOpen },
+    { key: "grammar", label: "Grammar Guide", icon: Languages },
+    // New item added here
+    { key: "task-history", label: "Task History", icon: History },
+    { key: "progress", label: "My Progress", icon: TrendingUp },
   ];
 
-  const menuItems = user?.role === 'admin' ? adminMenuItems : studentMenuItems;
+  const menuItems = user?.role === "admin" ? adminMenuItems : studentMenuItems;
 
   return (
     <>
@@ -74,13 +83,13 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }: Si
 
       <div
         className={`
-          fixed md:static top-0 left-0 h-full z-50
-          bg-slate-900 text-white flex flex-col
-          transition-all duration-300
-          ${collapsed ? 'w-16' : 'w-64'}
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0
-        `}
+  fixed md:static top-0 left-0 h-full z-50
+  bg-slate-900 text-white flex flex-col
+  transition-all duration-300
+  ${collapsed ? "w-16" : "w-64"}
+  ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+  md:translate-x-0
+ `}
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-slate-700">
@@ -88,7 +97,9 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }: Si
             {!collapsed && (
               <div>
                 <h2 className="text-lg font-semibold">PTE Prep</h2>
-                <p className="text-sm text-slate-400 capitalize">{user?.role} Portal</p>
+                <p className="text-sm text-slate-400 capitalize">
+                  {user?.role} Portal
+                </p>
               </div>
             )}
             {/* Collapse / Close buttons */}
@@ -100,7 +111,11 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }: Si
                 onClick={() => setCollapsed(!collapsed)}
                 className="text-white hover:bg-slate-700 hidden md:flex"
               >
-                {collapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                {collapsed ? (
+                  <Menu className="h-4 w-4" />
+                ) : (
+                  <X className="h-4 w-4" />
+                )}
               </Button>
               {/* Mobile close button */}
               <Button
@@ -123,9 +138,9 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }: Si
               return (
                 <Button
                   key={item.key}
-                  variant={activeView === item.key ? 'secondary' : 'ghost'}
+                  variant={activeView === item.key ? "secondary" : "ghost"}
                   className={`w-full justify-start text-white hover:bg-slate-700 ${
-                    collapsed ? 'px-2' : 'px-3'
+                    collapsed ? "px-2" : "px-3"
                   }`}
                   onClick={() => {
                     onViewChange(item.key);
@@ -151,7 +166,7 @@ export default function Sidebar({ user, activeView, onViewChange, onLogout }: Si
           <Button
             variant="ghost"
             className={`w-full justify-start text-white hover:bg-slate-700 ${
-              collapsed ? 'px-2' : 'px-3'
+              collapsed ? "px-2" : "px-3"
             }`}
             onClick={() => {
               onLogout();

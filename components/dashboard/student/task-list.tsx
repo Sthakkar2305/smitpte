@@ -42,6 +42,7 @@ interface Task {
   quantity: number;
   deadline?: string;
   description?: string;
+  isOverdue?: boolean;
 }
 
 type SubmissionStatus = "approved" | "rejected" | "pending" | null;
@@ -72,6 +73,7 @@ export default function TaskList({ token }: TaskListProps) {
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState("");
 
+  // In your main TaskList component
   const fetchTasks = async () => {
     try {
       const response = await fetch("/api/tasks", {
@@ -81,7 +83,14 @@ export default function TaskList({ token }: TaskListProps) {
       });
       if (response.ok) {
         const data = await response.json();
-        setTasks(data);
+
+        // Filter out tasks that already have submissions
+        const tasksWithoutSubmissions = data.filter((task: Task) => {
+          const submissionStatus = getSubmissionStatus(task._id);
+          return !submissionStatus; // Only show tasks without submissions
+        });
+
+        setTasks(tasksWithoutSubmissions);
       }
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -125,7 +134,7 @@ export default function TaskList({ token }: TaskListProps) {
         },
         body: formData,
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         // ✅ ensure consistent shape
@@ -134,7 +143,7 @@ export default function TaskList({ token }: TaskListProps) {
           url: file.url,
           publicId: file.publicId,
         }));
-        
+
         setUploadedFiles((prev) => [...prev, ...newFiles]);
       }
     } catch (error) {
@@ -168,6 +177,13 @@ export default function TaskList({ token }: TaskListProps) {
         setSubmissionNotes("");
         setUploadedFiles([]);
         fetchSubmissions();
+      } else {
+        const errorData = await response.json();
+        if (errorData.status === "rejected") {
+          // Deadline passed, update UI accordingly
+          alert("Deadline has passed. Submission rejected.");
+          fetchSubmissions(); // Refresh to show rejected status
+        }
       }
     } catch (error) {
       console.error("Error submitting task:", error);
@@ -177,6 +193,10 @@ export default function TaskList({ token }: TaskListProps) {
   };
 
   const getSubmissionStatus = (taskId: string): SubmissionStatus => {
+    // Add a check to ensure submissions is an array before calling .find()
+    if (!Array.isArray(submissions)) {
+      return null; // Return a default status if submissions is not an array
+    }
     const submission = submissions.find((s) => s.task?._id === taskId);
     return submission?.status || null;
   };
@@ -198,9 +218,9 @@ export default function TaskList({ token }: TaskListProps) {
     }
   };
 
-  const isTaskOverdue = (deadline?: string) => {
-    if (!deadline) return false;
-    return new Date(deadline) < new Date();
+  const canSubmitTask = (task: Task) => {
+    if (!task.deadline) return true; // No deadline means always allowed
+    return new Date(task.deadline) >= new Date();
   };
 
   const removeFile = (index: number) => {
@@ -244,11 +264,16 @@ export default function TaskList({ token }: TaskListProps) {
             {tasks.map((task) => {
               const submissionStatus = getSubmissionStatus(task._id);
               const submission = getSubmission(task._id);
-              const overdue = isTaskOverdue(task.deadline);
+              const overdue = task.isOverdue || false;
               const feedbackText = submission?.feedback?.text || "";
 
               return (
-                <Card key={task._id} className="border-l-4 border-l-blue-500">
+                <Card
+                  key={task._id}
+                  className={`border-l-4 ${
+                    overdue ? "border-l-red-500" : "border-l-blue-500"
+                  }`}
+                >
                   <CardContent className="p-3 sm:p-4">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                       <div className="flex-1 min-w-0">
@@ -266,13 +291,14 @@ export default function TaskList({ token }: TaskListProps) {
                           {task.deadline && (
                             <div
                               className={`flex items-center ${
-                                overdue ? "text-red-600" : ""
+                                overdue ? "text-red-600 font-medium" : ""
                               }`}
                             >
                               <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                               <span className="whitespace-nowrap">
                                 Due:{" "}
                                 {new Date(task.deadline).toLocaleDateString()}
+                                {overdue && " (Overdue)"}
                               </span>
                             </div>
                           )}
@@ -316,7 +342,7 @@ export default function TaskList({ token }: TaskListProps) {
                           </Badge>
                         )}
 
-                        {!submissionStatus && (
+                        {!submissionStatus && canSubmitTask(task) && (
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
@@ -453,6 +479,12 @@ export default function TaskList({ token }: TaskListProps) {
                               </div>
                             </DialogContent>
                           </Dialog>
+                        )}
+
+                        {!submissionStatus && !canSubmitTask(task) && (
+                          <Badge className="bg-red-100 text-red-800 text-xs sm:text-sm">
+                            Deadline Passed
+                          </Badge>
                         )}
                       </div>
                     </div>

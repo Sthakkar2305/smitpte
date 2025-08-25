@@ -259,6 +259,10 @@ export default function TaskManager({ token }: TaskManagerProps) {
     }
   };
 
+  const isTaskOverdue = (task: Task) => {
+    if (!task.deadline) return false;
+    return new Date(task.deadline) < new Date();
+  };
   const handleDeleteTask = async (taskId: string): Promise<void> => {
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
@@ -725,6 +729,25 @@ export default function TaskManager({ token }: TaskManagerProps) {
                               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
                               <span>
                                 {new Date(task.deadline).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ) : (
+                            "No deadline"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {task.deadline ? (
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span
+                                className={
+                                  isTaskOverdue(task)
+                                    ? "text-red-600 font-medium"
+                                    : ""
+                                }
+                              >
+                                {new Date(task.deadline).toLocaleDateString()}
+                                {isTaskOverdue(task) && " (Overdue)"}
                               </span>
                             </div>
                           ) : (

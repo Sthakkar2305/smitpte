@@ -97,7 +97,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .sort({ createdAt: -1 });
     }
 
-    return NextResponse.json(tasks);
+    // Add isOverdue status to each task
+    const tasksWithStatus = tasks.map(task => ({
+      ...task.toObject(),
+      isOverdue: task.deadline ? new Date(task.deadline) < new Date() : false
+    }));
+
+    return NextResponse.json(tasksWithStatus);
   } catch (error) {
     console.error('Get tasks error:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
