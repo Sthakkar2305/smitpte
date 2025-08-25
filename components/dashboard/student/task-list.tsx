@@ -74,46 +74,52 @@ export default function TaskList({ token }: TaskListProps) {
   const [selectedFeedback, setSelectedFeedback] = useState("");
 
   // In your main TaskList component
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch("/api/tasks", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+const fetchTasks = async () => {
+  try {
+    const response = await fetch("/api/tasks", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Ensure data is an array before filtering
+      const tasksArray = Array.isArray(data) ? data : [];
+      
+      // Filter out tasks that already have submissions
+      const tasksWithoutSubmissions = tasksArray.filter((task: Task) => {
+        const submissionStatus = getSubmissionStatus(task._id);
+        return !submissionStatus; // Only show tasks without submissions
       });
-      if (response.ok) {
-        const data = await response.json();
 
-        // Filter out tasks that already have submissions
-        const tasksWithoutSubmissions = data.filter((task: Task) => {
-          const submissionStatus = getSubmissionStatus(task._id);
-          return !submissionStatus; // Only show tasks without submissions
-        });
-
-        setTasks(tasksWithoutSubmissions);
-      }
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
+      setTasks(tasksWithoutSubmissions);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    setTasks([]); // Set to empty array on error
+  }
+};
 
-  const fetchSubmissions = async () => {
-    try {
-      const response = await fetch("/api/submissions", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSubmissions(data);
-      }
-    } catch (error) {
-      console.error("Error fetching submissions:", error);
-    } finally {
-      setLoading(false);
+ const fetchSubmissions = async () => {
+  try {
+    const response = await fetch("/api/submissions", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      // Fix: Extract the submissions array from the response
+      setSubmissions(data.submissions || []);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    setSubmissions([]); // Set to empty array on error
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
