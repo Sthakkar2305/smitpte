@@ -26,13 +26,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { title, type, description, quantity, deadline, assignedTo, assignToAll } = await request.json();
 
-    if (!title || !type || !description) {
-      return NextResponse.json({ message: 'Title, type, and description are required' }, { status: 400 });
+    if (!title || !type) {
+      return NextResponse.json({ message: 'Title and type are required' }, { status: 400 });
     }
 
     let finalAssignedTo: string[] = [];
     if (assignToAll) {
-      // If assignToAll is true, assign to all students (empty array means all)
       finalAssignedTo = [];
     } else if (assignedTo && assignedTo.length > 0) {
       finalAssignedTo = assignedTo;
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const newTask = new Task({
       title,
       type,
-      description,
+      description: description || '',
       quantity: quantity || 1,
       deadline: deadline ? new Date(deadline) : null,
       assignedTo: finalAssignedTo,
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// You can also add a GET route here to fetch all tasks
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     await connectDB();

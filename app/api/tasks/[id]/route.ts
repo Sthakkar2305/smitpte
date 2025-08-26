@@ -39,8 +39,8 @@ export async function PUT(
 
     const { title, type, description, quantity, deadline, assignedTo, assignToAll } = await request.json();
 
-    if (!title || !type || !description) {
-      return NextResponse.json({ message: 'Title, type, and description are required' }, { status: 400 });
+    if (!title || !type) {
+      return NextResponse.json({ message: 'Title and type are required' }, { status: 400 });
     }
 
     let finalAssignedTo: string[] = [];
@@ -57,7 +57,7 @@ export async function PUT(
       {
         title,
         type,
-        description,
+        description: description || '',
         quantity: quantity || 1,
         deadline: deadline ? new Date(deadline) : null,
         assignedTo: finalAssignedTo,

@@ -37,6 +37,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Users,
+  User,
 } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { SelectGroup, SelectLabel } from "@/components/ui/select";
@@ -49,6 +51,8 @@ interface FormData {
   deadline: string;
   description: string;
   selectedModule: string;
+  assignToAll: boolean;
+  assignedTo: string[];
 }
 
 interface PteTaskModule {
@@ -57,32 +61,51 @@ interface PteTaskModule {
   type: string;
 }
 
-// Add this array of PTE task modules (you can expand this list)
+// Add this array of PTE task modules (expanded with new modules)
 const PTE_TASK_MODULES: PteTaskModule[] = [
   // Speaking Tasks
   { id: "read_aloud", name: "Read Aloud", type: "speaking" },
   { id: "repeat_sentence", name: "Repeat Sentence", type: "speaking" },
   { id: "describe_image", name: "Describe Image", type: "speaking" },
   { id: "retell_lecture", name: "Retell Lecture", type: "speaking" },
+  { id: "summrize_group_decision", name: "summrizr group decision", type: "speaking" },
+  { id: "response_to_sitution", name: "Rsponse To Sitution", type: "speaking" },
   { id: "answer_short_question", name: "Answer Short Question", type: "speaking" },
+  
+  // New Speaking Tasks (August 7 update)
+  { id: "summarize_group_discussion", name: "Summarize Group Discussion", type: "speaking" },
+  { id: "respond_to_situation", name: "Respond to Situation", type: "speaking" },
 
   // Writing Tasks
   { id: "summarize_written_text", name: "Summarize Written Text", type: "writing" },
   { id: "write_essay", name: "Write Essay", type: "writing" },
 
   // Reading Tasks
-  { id: "reading_multiple_choice", name: "Reading: Multiple Choice", type: "reading" },
+  { id: "reading_multiple_choice_single", name: "Reading: Multiple Choice (Single Answer)", type: "reading" },
+  { id: "reading_multiple_choice_multiple", name: "Reading: Multiple Choice (Multiple Answers)", type: "reading" },
   { id: "reorder_paragraphs", name: "Reorder Paragraphs", type: "reading" },
-  { id: "reading_fill_blanks", name: "Reading: Fill in the Blanks", type: "reading" },
+  { id: "reading_fill_blanks_dropdown", name: "Reading: Fill in the Blanks (Drop-down)", type: "reading" },
+  { id: "reading_fill_blanks_drag", name: "Reading: Fill in the Blanks (Drag & Drop)", type: "reading" },
 
   // Listening Tasks
   { id: "summarize_spoken_text", name: "Summarize Spoken Text", type: "listening" },
-  { id: "listening_multiple_choice", name: "Listening: Multiple Choice", type: "listening" },
+  { id: "listening_multiple_choice_single", name: "Listening: Multiple Choice (Single Answer)", type: "listening" },
+  { id: "listening_multiple_choice_multiple", name: "Listening: Multiple Choice (Multiple Answers)", type: "listening" },
   { id: "fill_blanks_listening", name: "Fill in the Blanks (Listening)", type: "listening" },
   { id: "highlight_correct_summary", name: "Highlight Correct Summary", type: "listening" },
   { id: "select_missing_word", name: "Select Missing Word", type: "listening" },
   { id: "highlight_incorrect_words", name: "Highlight Incorrect Words", type: "listening" },
   { id: "write_from_dictation", name: "Write From Dictation", type: "listening" },
+  
+  // Section Tests
+  { id: "speaking_section_test", name: "Speaking Section Test", type: "section_test" },
+  { id: "writing_section_test", name: "Writing Section Test", type: "section_test" },
+  { id: "reading_section_test", name: "Reading Section Test", type: "section_test" },
+  { id: "listening_section_test", name: "Listening Section Test", type: "section_test" },
+  
+  // Mock Tests
+  { id: "full_mock_test", name: "Full Mock Test", type: "mock_test" },
+  { id: "mini_mock_test", name: "Mini Mock Test", type: "mock_test" },
 ];
 
 // Types for your data
@@ -94,6 +117,8 @@ interface Task {
   deadline?: string;
   description?: string;
   isOverdue?: boolean;
+  assignedTo?: any[];
+  assignToAll?: boolean;
 }
 
 // Props type
@@ -110,16 +135,17 @@ export default function TaskManager({ token }: TaskManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [students, setStudents] = useState<any[]>([]);
 
-  // FIX: Update the formData state to include the 'selectedModule' property
-  // and initialize with a non-empty string for the Select component.
   const [formData, setFormData] = useState<FormData>({
     title: "",
     type: "",
     quantity: "",
     deadline: "",
     description: "",
-    selectedModule: "", // This is the fix to align with the interface.
+    selectedModule: "",
+    assignToAll: true,
+    assignedTo: [],
   });
 
   const fetchTasks = async () => {
@@ -141,12 +167,33 @@ export default function TaskManager({ token }: TaskManagerProps) {
     }
   };
 
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch("/api/users/students", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
+  };
+
   // Pagination logic
   useEffect(() => {
     const indexOfLastTask = currentPage * tasksPerPage;
     const indexOfFirstTask = indexOfLastTask - tasksPerPage;
     setFilteredTasks(tasks.slice(indexOfFirstTask, indexOfLastTask));
   }, [tasks, currentPage, tasksPerPage]);
+
+  useEffect(() => {
+    fetchTasks();
+    fetchStudents();
+  }, []);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
@@ -169,6 +216,8 @@ export default function TaskManager({ token }: TaskManagerProps) {
           quantity: parseInt(formData.quantity),
           deadline: formData.deadline || undefined,
           description: formData.description || undefined,
+          assignToAll: formData.assignToAll,
+          assignedTo: formData.assignedTo,
         }),
       });
 
@@ -176,7 +225,10 @@ export default function TaskManager({ token }: TaskManagerProps) {
         setIsCreating(false);
         resetForm();
         fetchTasks();
-        setCurrentPage(1); // Reset to first page after creating a task
+        setCurrentPage(1);
+      } else {
+        const errorData = await response.json();
+        console.error("Error creating task:", errorData.message);
       }
     } catch (error) {
       console.error("Error creating task:", error);
@@ -199,6 +251,8 @@ export default function TaskManager({ token }: TaskManagerProps) {
           quantity: parseInt(formData.quantity),
           deadline: formData.deadline || undefined,
           description: formData.description || undefined,
+          assignToAll: formData.assignToAll,
+          assignedTo: formData.assignedTo,
         }),
       });
 
@@ -224,7 +278,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
 
       if (response.ok) {
         fetchTasks();
-        setCurrentPage(1); // Reset to first page after deleting a task
+        setCurrentPage(1);
       }
     } catch (error) {
       console.error("Error deleting task:", error);
@@ -239,12 +293,13 @@ export default function TaskManager({ token }: TaskManagerProps) {
       quantity: task.quantity.toString(),
       deadline: task.deadline || "",
       description: task.description || "",
-      selectedModule: "", // Correctly set a value here, even if not used in the UI
+      selectedModule: "",
+      assignToAll: task.assignToAll || true,
+      assignedTo: task.assignedTo ? task.assignedTo.map((user: any) => user._id || user) : [],
     });
     setIsEditing(true);
   };
   
-  // FIX: Update the resetForm function to include 'selectedModule'
   const resetForm = () => {
     setFormData({
       title: "",
@@ -253,12 +308,10 @@ export default function TaskManager({ token }: TaskManagerProps) {
       deadline: "",
       description: "",
       selectedModule: "",
+      assignToAll: true,
+      assignedTo: [],
     });
   };
-
-  useEffect(() => {
-    fetchTasks();
-  }, []);
 
   if (loading) {
     return (
@@ -295,7 +348,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
               Create Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl mx-2 sm:mx-0">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-0">
             <DialogHeader>
               <DialogTitle className="text-lg sm:text-xl">
                 Create New Task
@@ -333,9 +386,8 @@ export default function TaskManager({ token }: TaskManagerProps) {
                   <SelectTrigger className="text-xs sm:text-sm">
                     <SelectValue placeholder="Select PTE task module" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {/* FIX: Changed value from empty string to "placeholder" */}
-                    <SelectItem value="placeholder" className="text-xs sm:text-sm" disabled>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    <SelectItem value="" className="text-xs sm:text-sm" disabled>
                       Select a module
                     </SelectItem>
 
@@ -410,8 +462,58 @@ export default function TaskManager({ token }: TaskManagerProps) {
                         </SelectItem>
                       ))}
                     </SelectGroup>
+
+                    {/* Section Tests */}
+                    <SelectGroup>
+                      <SelectLabel className="text-xs sm:text-sm font-semibold">
+                        Section Tests
+                      </SelectLabel>
+                      {PTE_TASK_MODULES.filter(
+                        (module) => module.type === "section_test"
+                      ).map((module) => (
+                        <SelectItem
+                          key={module.id}
+                          value={module.id}
+                          className="text-xs sm:text-sm"
+                        >
+                          {module.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+
+                    {/* Mock Tests */}
+                    <SelectGroup>
+                      <SelectLabel className="text-xs sm:text-sm font-semibold">
+                        Mock Tests
+                      </SelectLabel>
+                      {PTE_TASK_MODULES.filter(
+                        (module) => module.type === "mock_test"
+                      ).map((module) => (
+                        <SelectItem
+                          key={module.id}
+                          value={module.id}
+                          className="text-xs sm:text-sm"
+                        >
+                          {module.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="title" className="text-sm sm:text-base">
+                  Task Title
+                </Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  className="text-xs sm:text-sm"
+                />
               </div>
 
               <div className="grid gap-2">
@@ -428,21 +530,28 @@ export default function TaskManager({ token }: TaskManagerProps) {
                     <SelectValue placeholder="Select task type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="reading" className="text-xs sm:text-sm">
-                      Reading
+                    <SelectItem value="speaking" className="text-xs sm:text-sm">
+                      Speaking
                     </SelectItem>
                     <SelectItem value="writing" className="text-xs sm:text-sm">
                       Writing
                     </SelectItem>
+                    <SelectItem value="reading" className="text-xs sm:text-sm">
+                      Reading
+                    </SelectItem>
                     <SelectItem value="listening" className="text-xs sm:text-sm">
                       Listening
                     </SelectItem>
-                    <SelectItem value="speaking" className="text-xs sm:text-sm">
-                      Speaking
+                    <SelectItem value="section_test" className="text-xs sm:text-sm">
+                      Section Test
+                    </SelectItem>
+                    <SelectItem value="mock_test" className="text-xs sm:text-sm">
+                      Mock Test
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="quantity" className="text-sm sm:text-base">
                   Quantity
@@ -458,6 +567,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                   className="text-xs sm:text-sm"
                 />
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="deadline" className="text-sm sm:text-base">
                   Deadline (Optional)
@@ -472,6 +582,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
                   className="text-xs sm:text-sm"
                 />
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="description" className="text-sm sm:text-base">
                   Description (Optional)
@@ -486,6 +597,71 @@ export default function TaskManager({ token }: TaskManagerProps) {
                   rows={3}
                 />
               </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="assignToAll" className="text-sm sm:text-base flex items-center">
+                  <Input
+                    id="assignToAll"
+                    type="checkbox"
+                    checked={formData.assignToAll}
+                    onChange={(e) => setFormData({ ...formData, assignToAll: e.target.checked })}
+                    className="mr-2"
+                  />
+                  Assign to all students
+                </Label>
+              </div>
+
+              {!formData.assignToAll && (
+                <div className="grid gap-2">
+                  <Label htmlFor="assignedTo" className="text-sm sm:text-base">
+                    Assign to specific students
+                  </Label>
+                  <Select
+                    onValueChange={(value) => {
+                      if (!formData.assignedTo.includes(value)) {
+                        setFormData({
+                          ...formData,
+                          assignedTo: [...formData.assignedTo, value]
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select students" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {students.map((student) => (
+                        <SelectItem key={student._id} value={student._id}>
+                          {student.name} ({student.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.assignedTo.map((studentId) => {
+                      const student = students.find(s => s._id === studentId);
+                      return (
+                        <Badge key={studentId} variant="secondary" className="flex items-center gap-1">
+                          {student ? student.name : studentId}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                assignedTo: formData.assignedTo.filter(id => id !== studentId)
+                              });
+                            }}
+                            className="ml-1"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex justify-end space-x-2">
               <Button
@@ -549,6 +725,21 @@ export default function TaskManager({ token }: TaskManagerProps) {
                               </span>
                             </div>
                           )}
+                          <div className="flex items-center">
+                            {task.assignedTo && task.assignedTo.length > 0 ? (
+                              <>
+                                <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span>
+                                  Assigned to {task.assignedTo.length} student{task.assignedTo.length !== 1 ? 's' : ''}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span>Assigned to all students</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                         {task.description && (
                           <p className="mt-2 text-xs sm:text-sm text-gray-700">
@@ -642,7 +833,7 @@ export default function TaskManager({ token }: TaskManagerProps) {
           }
         }}
       >
-        <DialogContent className="max-w-2xl mx-2 sm:mx-0">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-0">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
               Edit Task
@@ -679,17 +870,23 @@ export default function TaskManager({ token }: TaskManagerProps) {
                   <SelectValue placeholder="Select task type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="reading" className="text-xs sm:text-sm">
-                    Reading
+                  <SelectItem value="speaking" className="text-xs sm:text-sm">
+                    Speaking
                   </SelectItem>
                   <SelectItem value="writing" className="text-xs sm:text-sm">
                     Writing
                   </SelectItem>
+                  <SelectItem value="reading" className="text-xs sm:text-sm">
+                    Reading
+                  </SelectItem>
                   <SelectItem value="listening" className="text-xs sm:text-sm">
                     Listening
                   </SelectItem>
-                  <SelectItem value="speaking" className="text-xs sm:text-sm">
-                    Speaking
+                  <SelectItem value="section_test" className="text-xs sm:text-sm">
+                    Section Test
+                  </SelectItem>
+                  <SelectItem value="mock_test" className="text-xs sm:text-sm">
+                    Mock Test
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -737,6 +934,71 @@ export default function TaskManager({ token }: TaskManagerProps) {
                 rows={3}
               />
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-assignToAll" className="text-sm sm:text-base flex items-center">
+                <Input
+                  id="edit-assignToAll"
+                  type="checkbox"
+                  checked={formData.assignToAll}
+                  onChange={(e) => setFormData({ ...formData, assignToAll: e.target.checked })}
+                  className="mr-2"
+                />
+                Assign to all students
+              </Label>
+            </div>
+
+            {!formData.assignToAll && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-assignedTo" className="text-sm sm:text-base">
+                  Assign to specific students
+                </Label>
+                <Select
+                  onValueChange={(value) => {
+                    if (!formData.assignedTo.includes(value)) {
+                      setFormData({
+                        ...formData,
+                        assignedTo: [...formData.assignedTo, value]
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select students" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    {students.map((student) => (
+                      <SelectItem key={student._id} value={student._id}>
+                        {student.name} ({student.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.assignedTo.map((studentId) => {
+                    const student = students.find(s => s._id === studentId);
+                    return (
+                      <Badge key={studentId} variant="secondary" className="flex items-center gap-1">
+                        {student ? student.name : studentId}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              assignedTo: formData.assignedTo.filter(id => id !== studentId)
+                            });
+                          }}
+                          className="ml-1"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-end space-x-2">
             <Button
