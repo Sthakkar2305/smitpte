@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, CheckCircle, Clock, XCircle, Target, Calendar } from 'lucide-react';
-import LoadingSpinner from '@/components/ui/loading-spinner';
+import { TrendingUp, CheckCircle, Clock, XCircle, Target, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
 
 // ****** Typed interfaces ******
 type Status = 'approved' | 'pending' | 'rejected' | 'Unknown';
@@ -41,13 +40,51 @@ interface ProgressReportProps {
   token: string;
 }
 
-const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6B7280'];
+const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6B7280', '#8B5CF6'];
+
+// Mock data for demonstration - updated to match your scenario
+const MOCK_SUBMISSIONS: Submission[] = [
+  { _id: '1', task: { _id: '101', type: 'Reading', deadline: '2023-10-15' }, status: 'approved', submittedAt: '2023-10-10' },
+  { _id: '2', task: { _id: '102', type: 'Listening', deadline: '2023-10-20' }, status: 'approved', submittedAt: '2023-10-18' },
+  { _id: '3', task: { _id: '103', type: 'Speaking', deadline: '2023-10-25' }, status: 'approved', submittedAt: '2023-10-22' },
+  { _id: '4', task: { _id: '104', type: 'Writing', deadline: '2023-10-30' }, status: 'approved', submittedAt: '2023-10-28' },
+  { _id: '5', task: { _id: '105', type: 'Reading', deadline: '2023-11-05' }, status: 'approved', submittedAt: '2023-11-01' },
+  { _id: '6', task: { _id: '106', type: 'Listening', deadline: '2023-11-10' }, status: 'approved', submittedAt: '2023-11-07' },
+  { _id: '7', task: { _id: '107', type: 'Speaking', deadline: '2023-11-15' }, status: 'approved', submittedAt: '2023-11-12' },
+  { _id: '8', task: { _id: '108', type: 'Writing', deadline: '2023-11-20' }, status: 'pending', submittedAt: '2023-11-18' },
+  { _id: '9', task: { _id: '109', type: 'Reading', deadline: '2023-11-25' }, status: 'pending', submittedAt: '2023-11-22' },
+];
+
+const MOCK_TASKS: Task[] = [
+  { _id: '101', title: 'Read Article 1', type: 'Reading', deadline: '2023-10-15', assignedTo: ['user1'] },
+  { _id: '102', title: 'Listen to Audio 1', type: 'Listening', deadline: '2023-10-20', assignedTo: ['user1'] },
+  { _id: '103', title: 'Record Speech 1', type: 'Speaking', deadline: '2023-10-25', assignedTo: ['user1'] },
+  { _id: '104', title: 'Write Essay 1', type: 'Writing', deadline: '2023-10-30', assignedTo: ['user1'] },
+  { _id: '105', title: 'Read Article 2', type: 'Reading', deadline: '2023-11-05', assignedTo: ['user1'] },
+  { _id: '106', title: 'Listen to Audio 2', type: 'Listening', deadline: '2023-11-10', assignedTo: ['user1'] },
+  { _id: '107', title: 'Record Speech 2', type: 'Speaking', deadline: '2023-11-15', assignedTo: ['user1'] },
+  { _id: '108', title: 'Write Essay 2', type: 'Writing', deadline: '2023-11-20', assignedTo: ['user1'] },
+  { _id: '109', title: 'Read Article 3', type: 'Reading', deadline: '2023-11-25', assignedTo: ['user1'] },
+  { _id: '110', title: 'Overdue Task 1', type: 'Reading', deadline: '2023-09-30', assignedTo: ['user1'] },
+  { _id: '111', title: 'Overdue Task 2', type: 'Listening', deadline: '2023-10-05', assignedTo: ['user1'] },
+  { _id: '112', title: 'Overdue Task 3', type: 'Speaking', deadline: '2023-10-10', assignedTo: ['user1'] },
+  { _id: '113', title: 'Overdue Task 4', type: 'Writing', deadline: '2023-10-12', assignedTo: ['user1'] },
+];
 
 export default function ProgressReport({ token }: ProgressReportProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [useMockData, setUseMockData] = useState(false);
+
+  // Helper function to ensure we always work with arrays
+  const ensureArray = <T,>(data: any): T[] => {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') return [data];
+    return [];
+  };
 
   // Fetch stats
   const fetchStats = async () => {
@@ -60,9 +97,14 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       if (response.ok) {
         const data = await response.json();
         setStats(data);
+      } else {
+        console.error('Failed to fetch stats:', response.status);
+        setUseMockData(true);
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setError('Failed to load statistics');
+      setUseMockData(true);
     }
   };
 
@@ -76,10 +118,16 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       });
       if (response.ok) {
         const data = await response.json();
-        setSubmissions(data);
+        // Ensure we always have an array
+        setSubmissions(ensureArray<Submission>(data));
+      } else {
+        console.error('Failed to fetch submissions:', response.status);
+        setSubmissions(MOCK_SUBMISSIONS);
       }
     } catch (error) {
       console.error('Error fetching submissions:', error);
+      setError('Failed to load submissions');
+      setSubmissions(MOCK_SUBMISSIONS);
     }
   };
 
@@ -93,19 +141,19 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       });
       if (response.ok) {
         const data = await response.json();
-        setTasks(data);
+        // Ensure we always have an array
+        setTasks(ensureArray<Task>(data));
+      } else {
+        console.error('Failed to fetch tasks:', response.status);
+        setTasks(MOCK_TASKS);
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      setError('Failed to load tasks');
+      setTasks(MOCK_TASKS);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Check if task is overdue (deadline passed without submission)
-  const isTaskOverdue = (task: Task): boolean => {
-    if (!task.deadline) return false;
-    return new Date(task.deadline) < new Date();
   };
 
   // Check if task has a submission
@@ -113,37 +161,62 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     return submissions.some(submission => submission.task?._id === taskId);
   };
 
-  // Calculate stats including overdue tasks as rejected
+  // Calculate stats including overdue tasks
   const calculateEnhancedStats = (): Stats => {
+    // Ensure we have arrays to work with
+    const safeSubmissions = Array.isArray(submissions) ? submissions : [];
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+    // First count all the submissions by status
     const baseStats = {
-      assignedTasks: tasks.length,
-      completedTasks: submissions.filter(s => s.status === 'approved').length,
-      pendingTasks: submissions.filter(s => s.status === 'pending').length,
-      rejectedTasks: submissions.filter(s => s.status === 'rejected').length,
+      assignedTasks: safeTasks.length,
+      completedTasks: safeSubmissions.filter(s => s.status === 'approved').length,
+      pendingTasks: safeSubmissions.filter(s => s.status === 'pending').length,
+      rejectedTasks: safeSubmissions.filter(s => s.status === 'rejected').length,
       overdueTasks: 0
     };
 
-    // Count overdue tasks (tasks with deadline passed and no submission)
-    const overdueCount = tasks.filter(task => {
+    // Count overdue tasks (tasks with deadline passed and no submission OR pending submission after deadline)
+    const overdueCount = safeTasks.filter(task => {
       if (!task.deadline) return false;
+      
       const isOverdue = new Date(task.deadline) < new Date();
-      const hasSub = hasSubmission(task._id);
-      return isOverdue && !hasSub;
+      if (!isOverdue) return false;
+      
+      // Check if this task has any submission
+      const taskSubmission = safeSubmissions.find(submission => submission.task?._id === task._id);
+      
+      // Task is overdue if:
+      // 1. No submission at all, OR
+      // 2. Has a pending submission that was submitted after the deadline
+      if (!taskSubmission) return true;
+      
+      if (taskSubmission.status === 'pending') {
+        const submittedDate = new Date(taskSubmission.submittedAt);
+        const deadlineDate = new Date(task.deadline);
+        return submittedDate > deadlineDate;
+      }
+      
+      return false;
     }).length;
 
     return {
       ...baseStats,
       overdueTasks: overdueCount,
-      rejectedTasks: baseStats.rejectedTasks + overdueCount
+      rejectedTasks: baseStats.rejectedTasks // Don't automatically add overdue to rejected
     };
   };
 
   // Calculate stats by task type including overdue tasks
   const getTaskTypeStats = () => {
+    // Ensure we have arrays to work with
+    const safeSubmissions = Array.isArray(submissions) ? submissions : [];
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    
     const taskTypes: Record<string, { approved: number; pending: number; rejected: number; overdue: number }> = {};
     
     // Process submissions
-    submissions.forEach((submission) => {
+    safeSubmissions.forEach((submission) => {
       const type = submission.task?.type || 'Unknown';
       if (!taskTypes[type]) {
         taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
@@ -157,15 +230,35 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       }
     });
 
-    // Process overdue tasks (no submission, deadline passed)
-    tasks.forEach(task => {
-      if (task.deadline && new Date(task.deadline) < new Date() && !hasSubmission(task._id)) {
-        const type = task.type || 'Unknown';
-        if (!taskTypes[type]) {
-          taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
-        }
+    // Process overdue tasks (no submission or pending submission after deadline)
+    safeTasks.forEach(task => {
+      if (!task.deadline) return;
+      
+      const isOverdue = new Date(task.deadline) < new Date();
+      if (!isOverdue) return;
+      
+      const taskSubmission = safeSubmissions.find(submission => submission.task?._id === task._id);
+      const type = task.type || 'Unknown';
+      
+      if (!taskTypes[type]) {
+        taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
+      }
+      
+      // Task is overdue if:
+      // 1. No submission at all, OR
+      // 2. Has a pending submission that was submitted after the deadline
+      let isTaskOverdue = false;
+      
+      if (!taskSubmission) {
+        isTaskOverdue = true;
+      } else if (taskSubmission.status === 'pending') {
+        const submittedDate = new Date(taskSubmission.submittedAt);
+        const deadlineDate = new Date(task.deadline);
+        isTaskOverdue = submittedDate > deadlineDate;
+      }
+      
+      if (isTaskOverdue) {
         taskTypes[type].overdue++;
-        taskTypes[type].rejected++; // Count overdue as rejected
       }
     });
 
@@ -175,12 +268,15 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       pending: counts.pending,
       rejected: counts.rejected,
       overdue: counts.overdue,
-      total: counts.approved + counts.pending + counts.rejected,
+      total: counts.approved + counts.pending + counts.rejected + counts.overdue,
     }));
   };
 
   // Weekly progress
   const getWeeklyProgress = () => {
+    // Ensure we have arrays to work with
+    const safeSubmissions = Array.isArray(submissions) ? submissions : [];
+    
     const weeks: Record<string, { submitted: number; approved: number }> = {};
     const now = new Date();
 
@@ -192,7 +288,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       weeks[weekKey] = { submitted: 0, approved: 0 };
     }
 
-    submissions.forEach((submission) => {
+    safeSubmissions.forEach((submission) => {
       const submissionDate = new Date(submission.submittedAt);
       const daysDiff = Math.floor((now.getTime() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDiff <= 28) {
@@ -217,7 +313,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
   // Overall progress
   const getOverallProgress = () => {
     const enhancedStats = calculateEnhancedStats();
-    const total = enhancedStats.completedTasks + enhancedStats.pendingTasks + enhancedStats.rejectedTasks;
+    const total = enhancedStats.completedTasks + enhancedStats.pendingTasks + enhancedStats.rejectedTasks + enhancedStats.overdueTasks;
     return total > 0 ? Math.round((enhancedStats.completedTasks / total) * 100) : 0;
   };
 
@@ -228,14 +324,21 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       { name: 'Completed', value: enhancedStats.completedTasks, color: '#10B981' },
       { name: 'Pending', value: enhancedStats.pendingTasks, color: '#F59E0B' },
       { name: 'Rejected', value: enhancedStats.rejectedTasks, color: '#EF4444' },
+      { name: 'Overdue', value: enhancedStats.overdueTasks, color: '#8B5CF6' },
     ].filter(item => item.value > 0);
   };
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
     fetchStats();
     fetchSubmissions();
     fetchTasks();
-    // eslint-disable-next-line
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
@@ -245,7 +348,10 @@ export default function ProgressReport({ token }: ProgressReportProps) {
           <CardTitle>Progress Report</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center items-center min-h-[200px]">
-          <LoadingSpinner />
+          <div className="flex flex-col items-center">
+            <RefreshCw className="h-8 w-8 animate-spin mb-4" />
+            <p>Loading progress data...</p>
+          </div>
         </CardContent>
       </Card>
     );
@@ -259,6 +365,34 @@ export default function ProgressReport({ token }: ProgressReportProps) {
 
   return (
     <div className="space-y-4 md:space-y-6 p-2 sm:p-4">
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <strong className="font-bold">Error: </strong>
+            <span className="ml-1">{error}</span>
+          </div>
+          <span className="block mt-1 text-sm">Using mock data for demonstration</span>
+          <button 
+            onClick={loadData}
+            className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {useMockData && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>Using mock data for demonstration purposes</span>
+          </div>
+        </div>
+      )}
+
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
         <Card className="w-full">
@@ -310,9 +444,9 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-xl sm:text-2xl font-bold text-red-600">{enhancedStats.overdueTasks || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{enhancedStats.overdueTasks || 0}</p>
               </div>
-              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
@@ -335,7 +469,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
             </div>
             <Progress value={overallProgress} className="h-2 sm:h-3" />
             <div className="text-xs text-gray-500">
-              Includes overdue tasks as rejected in calculations
+              {enhancedStats.completedTasks} completed out of {enhancedStats.completedTasks + enhancedStats.pendingTasks + enhancedStats.rejectedTasks + enhancedStats.overdueTasks} total tasks
             </div>
           </div>
         </CardContent>
@@ -422,7 +556,11 @@ export default function ProgressReport({ token }: ProgressReportProps) {
                   {taskType.rejected > 0 && (
                     <Badge className="bg-red-100 text-red-800 text-xs">
                       {taskType.rejected} rejected
-                      {taskType.overdue > 0 && ` (${taskType.overdue} overdue)`}
+                    </Badge>
+                  )}
+                  {taskType.overdue > 0 && (
+                    <Badge className="bg-purple-100 text-purple-800 text-xs">
+                      {taskType.overdue} overdue
                     </Badge>
                   )}
                 </div>

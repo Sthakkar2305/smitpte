@@ -49,10 +49,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Unified file interface that works for both uploads and downloads
 interface FileData {
   originalName?: string;
-  originalname?: string; // For database compatibility
+  originalname?: string;
   filename?: string;
   url?: string;
   path?: string;
@@ -133,12 +132,11 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
           body: formData,
         });
 
-       if (response.ok) {
+        if (response.ok) {
           const resultData = await response.json();
-          const uploadedFile = resultData[0]; // Get the first (and only) file object from the array
+          const uploadedFile = resultData[0];
 
           if (uploadedFile) {
-            // Return a consistent FileData object
             return {
               originalName:
                 uploadedFile.originalName || uploadedFile.originalname || file.name,
@@ -150,7 +148,8 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
               size: uploadedFile.size,
               mimetype: uploadedFile.mimetype,
             };
-          }} else {
+          }
+        } else {
           console.error("Upload failed:", await response.text());
         }
       } catch (error) {
@@ -237,48 +236,47 @@ export default function MaterialUpload({ token }: MaterialUploadProps) {
   const removeFile = (index: number) => {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
-const downloadFile = async (file: FileData) => {
-  if (!file.url) {
-    console.error("Download failed: File object is missing a URL.", file);
-    alert("This file cannot be downloaded because its URL is missing.");
-    return;
-  }
 
-  try {
-    // Fetch the file as a blob
-    const response = await fetch(file.url);
-    const blob = await response.blob();
-    
-    // Create a blob URL
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // Determine filename with extension
-    const originalName = file.originalName || file.originalname || file.filename || "download";
-    const fileExtension = originalName.includes('.') 
-      ? originalName.split('.').pop() 
-      : (file.mimetype?.split('/')[1] || '');
-    
-    const filename = fileExtension 
-      ? `${originalName.split('.')[0]}.${fileExtension}`
-      : originalName;
-    
-    // Create download link and trigger click
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Clean up
-    URL.revokeObjectURL(blobUrl);
-  } catch (err) {
-    console.error("Download failed", err, "File object was:", file);
-    alert("An error occurred while trying to download the file.");
-  }
-};
+  const downloadFile = async (file: FileData) => {
+    if (!file.url) {
+      console.error("Download failed: File object is missing a URL.", file);
+      alert("This file cannot be downloaded because its URL is missing.");
+      return;
+    }
 
-
+    try {
+      // Fetch the file as a blob
+      const response = await fetch(file.url);
+      const blob = await response.blob();
+      
+      // Create a blob URL
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Determine filename with extension
+      const originalName = file.originalName || file.originalname || file.filename || "download";
+      const fileExtension = originalName.includes('.') 
+        ? originalName.split('.').pop() 
+        : (file.mimetype?.split('/')[1] || '');
+      
+      const filename = fileExtension 
+        ? `${originalName.split('.')[0]}.${fileExtension}`
+        : originalName;
+      
+      // Create download link and trigger click
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download failed", err, "File object was:", file);
+      alert("An error occurred while trying to download the file.");
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -295,23 +293,6 @@ const downloadFile = async (file: FileData) => {
   useEffect(() => {
     fetchMaterials();
   }, [token]);
-
-  // Debug: log materials structure
-  useEffect(() => {
-    if (materials.length > 0) {
-      console.log("All materials:", materials);
-      materials.forEach((material, index) => {
-        console.log(`Material ${index}: ${material.title}`);
-        if (material.files && material.files.length > 0) {
-          console.log("Files in this material:", material.files);
-          material.files.forEach((file, fileIndex) => {
-            console.log(`File ${fileIndex} properties:`, Object.keys(file));
-            console.log(`File ${fileIndex} values:`, file);
-          });
-        }
-      });
-    }
-  }, [materials]);
 
   return (
     <div className="space-y-6">

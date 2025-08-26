@@ -20,10 +20,9 @@ const getResourceType = (mimetype: string): "image" | "video" | "raw" => {
   if (mimetype.startsWith("video/")) return "video";
   // ✅ FIX: Classify audio as 'video' to satisfy the older type definition.
   // Cloudinary will still process it correctly as an audio file.
-  if (mimetype.startsWith("audio/")) return "video"; 
+  if (mimetype.startsWith("audio/")) return "video";
   return "raw"; // Default for PDFs, DOCs, etc.
 };
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,30 +51,32 @@ export async function POST(req: NextRequest) {
     // Determine the correct resource_type before uploading
     const resourceType = getResourceType(file.type);
 
-   // In your route.ts file, update the upload configuration:
-const uploaded: UploadApiResponse = await new Promise(
-  (resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: resourceType,
-        folder: "pte-materials",
-        // Preserve the original filename with extension
-        use_filename: true,
-        unique_filename: false, // Set to false to keep original name
-        overwrite: false, // Don't overwrite existing files
-      },
-      (
-        error: UploadApiErrorResponse | undefined,
-        result: UploadApiResponse | undefined
-      ) => {
-        if (error || !result) reject(error);
-        else resolve(result);
-      }
-    );
-    stream.end(buffer);
-  }
-);
-    
+    // Add a timestamp to ensure unique filenames
+    const timestamp = Date.now();
+    const originalNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    const extension = file.name.split(".").pop();
+    // In your route.ts file, update the upload configuration:
+    const uploaded: UploadApiResponse = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: resourceType,
+          folder: "pte-materials",
+          public_id: `${originalNameWithoutExt}_${timestamp}`, // Add timestamp
+          use_filename: true,
+          unique_filename: true,
+          overwrite: false,
+        },
+        (
+          error: UploadApiErrorResponse | undefined,
+          result: UploadApiResponse | undefined
+        ) => {
+          if (error || !result) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(buffer);
+    });
+
     const result = {
       originalName: file.name,
       filename: uploaded.public_id,
@@ -86,7 +87,6 @@ const uploaded: UploadApiResponse = await new Promise(
     };
 
     return NextResponse.json([result]);
-
   } catch (error) {
     console.error("Material upload error:", error);
     return NextResponse.json(
