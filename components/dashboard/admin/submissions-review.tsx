@@ -20,114 +20,145 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Eye, CheckCircle, XCircle, FileText } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Calendar,
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { BulkDeleteSubmissions } from "@/components/dashboard/admin/bulk-delete-submissions";
 
-
-// Update the interface to match what BulkDeleteSubmissions expects
-interface Submission {
-  _id: string;
-  student?: {
-    name?: string; // Make name optional
-  };
-  task?: {
-    title?: string; // Make title optional
-    description?: string;
-    type?: string;
-  };
-  status: string;
-  submittedAt: string;
-  feedback?: {
-    text?: string;
-  };
-  notes?: string;
-  files?: {
-    originalName: string;
-    url: string;
-  }[];
+// Types for your data
+interface FileItem {
+  originalName: string;
+  url: string;
+  publicId?: string;
 }
 
-interface SubmissionsReviewProps {
+interface Feedback {
+  text?: string;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  type: string;
+  quantity: number;
+  deadline?: string;
+  description?: string;
+  isOverdue?: boolean;
+}
+
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+}
+
+type SubmissionStatus = "approved" | "rejected" | "pending" | null;
+
+interface Submission {
+  _id: string;
+  task?: Task;
+  student?: User;
+  status?: SubmissionStatus;
+  feedback?: Feedback;
+  notes?: string;
+  files?: FileItem[];
+  createdAt: string;
+}
+
+// Props type
+interface SubmissionsProps {
   token: string;
 }
 
-export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
+export default function Submissions({ token }: SubmissionsProps) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [filteredSubmissions, setFilteredSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [submissionsPerPage] = useState(5);
+  const [feedbackText, setFeedbackText] = useState("");
   const [selectedSubmission, setSelectedSubmission] =
     useState<Submission | null>(null);
-  const [feedback, setFeedback] = useState<string>("");
-  const [isUpdating, setIsUpdating] = useState<boolean>(false);
-  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
- const fetchSubmissions = async () => {
-  try {
-    const response = await fetch("/api/submissions", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      // Fix: Extract the submissions array from the response
-      setSubmissions(data.submissions || []);
-    } else {
-      console.error("Failed to fetch submissions:", response.status);
-      setSubmissions([]); // Set to empty array on error
-    }
-  } catch (error) {
-    console.error("Error fetching submissions:", error);
-    setSubmissions([]); // Set to empty array on error
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const updateSubmissionStatus = async (
-    submissionId: string,
-    status: string,
-    feedbackText: string
-  ) => {
-    setIsUpdating(true);
+  const fetchSubmissions = async () => {
     try {
-      const response = await fetch(`/api/submissions/${submissionId}`, {
-        method: "PATCH",
+      const response = await fetch("/api/submissions", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSubmissions(data.submissions || []);
+      }
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
+      setSubmissions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pagination logic
+  useEffect(() => {
+    const indexOfLastSubmission = currentPage * submissionsPerPage;
+    const indexOfFirstSubmission = indexOfLastSubmission - submissionsPerPage;
+    setFilteredSubmissions(submissions.slice(indexOfFirstSubmission, indexOfLastSubmission));
+  }, [submissions, currentPage, submissionsPerPage]);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  const pageNumbers = [];
+  for (let i = 1; i <= Math.ceil(submissions.length / submissionsPerPage); i++) {
+    pageNumbers.push(i);
+  }
+
+  const handleApproveReject = async (status: "approved" | "rejected") => {
+    if (!selectedSubmission) return;
+
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch(`/api/submissions/${selectedSubmission._id}`, {
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           status,
-          feedbackText,
+          feedback: feedbackText ? { text: feedbackText } : undefined,
         }),
       });
 
       if (response.ok) {
-        await fetchSubmissions();
         setSelectedSubmission(null);
-        setFeedback("");
-        setDialogOpen(false);
-      } else {
-        console.error("Failed to update submission:", response.status);
-        const errorData = await response.json();
-        console.error("Error details:", errorData);
+        setFeedbackText("");
+        fetchSubmissions();
+        setCurrentPage(1); // Reset to first page after action
       }
     } catch (error) {
       console.error("Error updating submission:", error);
     } finally {
-      setIsUpdating(false);
+      setIsProcessing(false);
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
+  const getSubmissionBadgeColor = (status: SubmissionStatus) => {
     switch (status) {
       case "approved":
         return "bg-green-100 text-green-800";
@@ -140,213 +171,348 @@ export default function SubmissionsReview({ token }: SubmissionsReviewProps) {
     }
   };
 
-  const handleReviewClick = (submission: Submission) => {
-    setSelectedSubmission(submission);
-    setFeedback(submission.feedback?.text || "");
-    setDialogOpen(true);
-  };
-
   useEffect(() => {
     fetchSubmissions();
   }, []);
 
+  if (loading) {
+    return (
+      <Card className="w-full max-w-6xl mx-auto mt-4 md:mt-0">
+        <CardHeader>
+          <CardTitle className="text-xl sm:text-2xl">Submissions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LoadingSpinner />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4 mt-4 md:mt-0">
       <Card>
         <CardHeader>
-          <CardTitle>Submissions Review</CardTitle>
-          <CardDescription>
-            Review and provide feedback on student submissions
+          <CardTitle className="text-xl sm:text-2xl">Submissions</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
+            Review and manage student submissions
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <LoadingSpinner />
-          ) : (
-            <>
-              <BulkDeleteSubmissions
-                submissions={submissions}
-                token={token}
-                onSuccess={() => {
-                  // Refresh submissions after deletion
-                  fetchSubmissions();
-                }}
-              />
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.isArray(submissions) && submissions.map((submission) => (
-                    <TableRow key={submission._id}>
-                      <TableCell className="font-medium">
-                        {submission.student?.name || "Unknown Student"}
-                      </TableCell>
-                      <TableCell>
-                        {submission.task?.title || "Unknown Task"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {submission.task?.type || "Unknown"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={getStatusBadgeColor(submission.status)}
-                        >
-                          {submission.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(submission.submittedAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleReviewClick(submission)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Review
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          <div className="grid gap-4">
+            {filteredSubmissions.map((submission) => {
+              const task = submission.task;
+              const student = submission.student;
+              if (!task || !student) return null;
 
-              {/* Single Dialog for all submissions */}
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                  {selectedSubmission && (
-                    <>
-                      <DialogHeader className="flex-shrink-0">
-                        <DialogTitle>Review Submission</DialogTitle>
-                        <DialogDescription>
-                          Task: {selectedSubmission.task?.title} by{" "}
-                          {selectedSubmission.student?.name}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="overflow-y-auto flex-1 space-y-4 pr-2">
-                        <div>
-                          <h4 className="font-medium mb-2">Task Details:</h4>
-                          <p className="text-sm text-gray-600">
-                            {selectedSubmission.task?.description || "No description available"}
+              const overdue = task.isOverdue || false;
+
+              return (
+                <Card
+                  key={submission._id}
+                  className={`border-l-4 ${
+                    overdue ? "border-l-red-500" : "border-l-blue-500"
+                  }`}
+                >
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base sm:text-lg">
+                          {task.title}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-xs sm:text-sm text-gray-600">
+                          <Badge variant="outline" className="text-xs">
+                            {task.type}
+                          </Badge>
+                          <div className="flex items-center">
+                            <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                            Qty: {task.quantity}
+                          </div>
+                          {task.deadline && (
+                            <div
+                              className={`flex items-center ${
+                                overdue ? "text-red-600 font-medium" : ""
+                              }`}
+                            >
+                              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                              <span className="whitespace-nowrap">
+                                Due:{" "}
+                                {new Date(task.deadline).toLocaleDateString()}
+                                {overdue && " (Overdue)"}
+                              </span>
+                            </div>
+                          )}
+                          <Badge
+                            className={`${getSubmissionBadgeColor(
+                              submission.status || null
+                            )} text-xs sm:text-sm`}
+                          >
+                            {submission.status}
+                          </Badge>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-xs sm:text-sm font-medium">
+                            Submitted by: {student.name}
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-600">
+                            {student.email}
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                            Submitted on:{" "}
+                            {new Date(submission.createdAt).toLocaleDateString()}
                           </p>
                         </div>
+                        {task.description && (
+                          <p className="mt-2 text-xs sm:text-sm text-gray-700">
+                            {task.description}
+                          </p>
+                        )}
 
-                        {selectedSubmission.notes && (
-                          <div>
-                            <h4 className="font-medium mb-2">Student Notes:</h4>
-                            <p className="text-sm bg-gray-50 p-3 rounded max-h-32 overflow-y-auto">
-                              {selectedSubmission.notes}
+                        {submission.notes && (
+                          <div className="mt-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                            <h4 className="font-medium text-xs sm:text-sm text-gray-900">
+                              Student Notes:
+                            </h4>
+                            <p className="text-xs sm:text-sm text-gray-800 mt-1">
+                              {submission.notes}
                             </p>
                           </div>
                         )}
 
-                        {selectedSubmission.files &&
-                          selectedSubmission.files.length > 0 && (
-                            <div>
-                              <h4 className="font-medium mb-2">
-                                Submitted Files:
-                              </h4>
-                              <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {selectedSubmission.files.map((file, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center justify-between bg-gray-50 p-2 rounded"
-                                  >
-                                    <div className="flex items-center">
-                                      <FileText className="h-4 w-4 mr-2" />
-                                      <span className="text-sm">
-                                        {file.originalName}
-                                      </span>
-                                    </div>
-                                    <a
-                                      href={file.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                      View
-                                    </a>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                        {submission.feedback?.text && (
+                          <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                            <h4 className="font-medium text-xs sm:text-sm text-blue-900">
+                              Your Feedback:
+                            </h4>
+                            <p className="text-xs sm:text-sm text-blue-800 mt-1">
+                              {submission.feedback.text}
+                            </p>
+                          </div>
+                        )}
 
-                        <div>
-                          <h4 className="font-medium mb-2">Feedback:</h4>
-                          <Textarea
-                            value={feedback}
-                            onChange={(e) => setFeedback(e.target.value)}
-                            placeholder="Provide feedback to the student..."
-                            rows={4}
-                            className="resize-y min-h-[100px]"
-                          />
-                        </div>
+                        {submission.files && submission.files.length > 0 && (
+                          <div className="mt-3">
+                            <h4 className="font-medium text-xs sm:text-sm text-gray-900 mb-2">
+                              Submitted Files:
+                            </h4>
+                            <div className="space-y-2">
+                              {submission.files.map((file, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center bg-gray-50 p-2 rounded"
+                                >
+                                  <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                                  <a
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs sm:text-sm text-blue-600 underline whitespace-nowrap truncate"
+                                  >
+                                    {file.originalName}
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex space-x-2 pt-4 border-t flex-shrink-0">
-                        <Button
-                          onClick={() =>
-                            updateSubmissionStatus(
-                              selectedSubmission._id,
-                              "approved",
-                              feedback
-                            )
-                          }
-                          disabled={isUpdating}
-                          className="flex-1"
-                        >
-                          {isUpdating ? (
-                            <LoadingSpinner size="sm" />
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Approve
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() =>
-                            updateSubmissionStatus(
-                              selectedSubmission._id,
-                              "rejected",
-                              feedback
-                            )
-                          }
-                          disabled={isUpdating}
-                          className="flex-1"
-                        >
-                          {isUpdating ? (
-                            <LoadingSpinner size="sm" />
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Reject
-                            </>
-                          )}
-                        </Button>
+
+                      <div className="flex flex-col items-stretch sm:items-end gap-2">
+                        {submission.status === "pending" && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                onClick={() => {
+                                  setSelectedSubmission(submission);
+                                  setFeedbackText(
+                                    submission.feedback?.text || ""
+                                  );
+                                }}
+                                className="text-xs sm:text-sm"
+                                size="sm"
+                              >
+                                <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                Review
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl mx-2 sm:mx-0 h-[90vh] flex flex-col">
+                              <DialogHeader className="flex-shrink-0">
+                                <DialogTitle className="text-lg sm:text-xl">
+                                  Review Submission
+                                </DialogTitle>
+                                <DialogDescription className="text-sm sm:text-base">
+                                  Provide feedback and approve or reject this
+                                  submission
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                                <div>
+                                  <h4 className="font-medium text-sm sm:text-base">
+                                    Task: {task.title}
+                                  </h4>
+                                  <p className="text-xs sm:text-sm text-gray-600">
+                                    Submitted by: {student.name} ({student.email})
+                                  </p>
+                                </div>
+
+                                {task.description && (
+                                  <div>
+                                    <h4 className="font-medium text-xs sm:text-sm">
+                                      Task Description:
+                                    </h4>
+                                    <p className="text-xs sm:text-sm text-gray-700">
+                                      {task.description}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {submission.notes && (
+                                  <div>
+                                    <h4 className="font-medium text-xs sm:text-sm">
+                                      Student Notes:
+                                    </h4>
+                                    <p className="text-xs sm:text-sm text-gray-700">
+                                      {submission.notes}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {submission.files && submission.files.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium text-xs sm:text-sm">
+                                      Submitted Files:
+                                    </h4>
+                                    <div className="space-y-2 mt-2">
+                                      {submission.files.map((file, index) => (
+                                        <div
+                                          key={index}
+                                          className="flex items-center bg-gray-50 p-2 rounded"
+                                        >
+                                          <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                                          <a
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs sm:text-sm text-blue-600 underline whitespace-nowrap truncate"
+                                          >
+                                            {file.originalName}
+                                          </a>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div>
+                                  <h4 className="font-medium text-xs sm:text-sm mb-2">
+                                    Feedback (Optional):
+                                  </h4>
+                                  <Textarea
+                                    value={feedbackText}
+                                    onChange={(e) =>
+                                      setFeedbackText(e.target.value)
+                                    }
+                                    placeholder="Provide feedback for the student..."
+                                    className="text-xs sm:text-sm"
+                                    rows={4}
+                                  />
+                                </div>
+                              </div>
+                              <div className="pt-4 border-t flex-shrink-0 flex justify-between">
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleApproveReject("rejected")}
+                                  disabled={isProcessing}
+                                  className="text-xs sm:text-sm"
+                                  size="sm"
+                                >
+                                  {isProcessing ? (
+                                    <LoadingSpinner size="sm" />
+                                  ) : (
+                                    <>
+                                      <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                      Reject
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  onClick={() => handleApproveReject("approved")}
+                                  disabled={isProcessing}
+                                  className="text-xs sm:text-sm"
+                                  size="sm"
+                                >
+                                  {isProcessing ? (
+                                    <LoadingSpinner size="sm" />
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                      Approve
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+
+                        {submission.status !== "pending" && (
+                          <Badge
+                            className={`${getSubmissionBadgeColor(
+                              submission.status || null
+                            )} text-xs sm:text-sm`}
+                          >
+                            {submission.status}
+                          </Badge>
+                        )}
                       </div>
-                    </>
-                  )}
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
-          {Array.isArray(submissions) && submissions.length === 0 && !loading && (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-4" />
-              <p>No submissions found</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {submissions.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <Clock className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4" />
+                <p className="text-sm sm:text-base">No submissions yet</p>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {pageNumbers.length > 1 && (
+            <div className="flex justify-center mt-6">
+              <nav className="flex items-center space-x-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {pageNumbers.map((number) => (
+                  <Button
+                    key={number}
+                    variant={currentPage === number ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => paginate(number)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {number}
+                  </Button>
+                ))}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(Math.min(pageNumbers.length, currentPage + 1))}
+                  disabled={currentPage === pageNumbers.length}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
             </div>
           )}
         </CardContent>

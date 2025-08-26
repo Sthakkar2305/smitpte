@@ -21,7 +21,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar, FileText, Clock, Upload, X, Eye } from "lucide-react";
+import {
+  Calendar,
+  FileText,
+  Clock,
+  Upload,
+  X,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 // Types for your data
@@ -62,7 +71,9 @@ interface TaskListProps {
 }
 
 export default function TaskList({ token }: TaskListProps) {
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -72,54 +83,93 @@ export default function TaskList({ token }: TaskListProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [tasksPerPage] = useState(5);
 
-  // In your main TaskList component
-const fetchTasks = async () => {
-  try {
-    const response = await fetch("/api/tasks", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      
-      // Ensure data is an array before filtering
-      const tasksArray = Array.isArray(data) ? data : [];
-      
-      // Filter out tasks that already have submissions
-      const tasksWithoutSubmissions = tasksArray.filter((task: Task) => {
-        const submissionStatus = getSubmissionStatus(task._id);
-        return !submissionStatus; // Only show tasks without submissions
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch("/api/tasks", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-
-      setTasks(tasksWithoutSubmissions);
+      if (response.ok) {
+        const data = await response.json();
+        const tasksArray = Array.isArray(data) ? data : [];
+        setAllTasks(tasksArray);
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      setAllTasks([]);
     }
-  } catch (error) {
-    console.error("Error fetching tasks:", error);
-    setTasks([]); // Set to empty array on error
-  }
-};
+  };
 
- const fetchSubmissions = async () => {
-  try {
-    const response = await fetch("/api/submissions", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      // Fix: Extract the submissions array from the response
-      setSubmissions(data.submissions || []);
+  const fetchSubmissions = async () => {
+    try {
+      const response = await fetch("/api/submissions", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSubmissions(data.submissions || []);
+      }
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
+      setSubmissions([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching submissions:", error);
-    setSubmissions([]); // Set to empty array on error
-  } finally {
-    setLoading(false);
+  };
+
+  const getSubmissionStatus = (taskId: string): SubmissionStatus => {
+    if (!Array.isArray(submissions)) {
+      return null;
+    }
+    const submission = submissions.find((s) => s.task?._id === taskId);
+    return submission?.status || null;
+  };
+
+  // Effect to fetch initial data
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchTasks(), fetchSubmissions()]);
+    };
+    loadData();
+  }, []);
+
+  // Effect to filter tasks based on submissions
+  useEffect(() => {
+    if (allTasks.length > 0) {
+      const filtered = allTasks.filter(task => {
+        const submission = submissions.find(s => s.task?._id === task._id);
+        if (!submission) {
+          // Keep tasks with no submission
+          return true;
+        }
+        // Exclude tasks with approved, rejected, or pending submissions
+        return false;
+      });
+      setTasks(filtered);
+      setCurrentPage(1); // Reset to the first page when the task list changes
+    }
+  }, [allTasks, submissions]);
+
+  // Pagination logic
+  useEffect(() => {
+    const indexOfLastTask = currentPage * tasksPerPage;
+    const indexOfFirstTask = indexOfLastTask - tasksPerPage;
+    setFilteredTasks(tasks.slice(indexOfFirstTask, indexOfLastTask));
+  }, [tasks, currentPage, tasksPerPage]);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  const pageNumbers = [];
+  for (let i = 1; i <= Math.ceil(tasks.length / tasksPerPage); i++) {
+    pageNumbers.push(i);
   }
-};
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -143,7 +193,6 @@ const fetchTasks = async () => {
 
       if (response.ok) {
         const result = await response.json();
-        // ✅ ensure consistent shape
         const newFiles = result.map((file: any) => ({
           originalName: file.originalName,
           url: file.url,
@@ -156,7 +205,6 @@ const fetchTasks = async () => {
       console.error("Upload error:", error);
     } finally {
       setIsUploading(false);
-      // ✅ reset input value so user can select the same file again if needed
       e.target.value = "";
     }
   };
@@ -183,12 +231,14 @@ const fetchTasks = async () => {
         setSubmissionNotes("");
         setUploadedFiles([]);
         fetchSubmissions();
+        fetchTasks();
+        setCurrentPage(1); // Reset to first page after submission
       } else {
         const errorData = await response.json();
         if (errorData.status === "rejected") {
-          // Deadline passed, update UI accordingly
           alert("Deadline has passed. Submission rejected.");
-          fetchSubmissions(); // Refresh to show rejected status
+          fetchSubmissions();
+          fetchTasks();
         }
       }
     } catch (error) {
@@ -196,15 +246,6 @@ const fetchTasks = async () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const getSubmissionStatus = (taskId: string): SubmissionStatus => {
-    // Add a check to ensure submissions is an array before calling .find()
-    if (!Array.isArray(submissions)) {
-      return null; // Return a default status if submissions is not an array
-    }
-    const submission = submissions.find((s) => s.task?._id === taskId);
-    return submission?.status || null;
   };
 
   const getSubmission = (taskId: string): Submission | undefined => {
@@ -225,7 +266,7 @@ const fetchTasks = async () => {
   };
 
   const canSubmitTask = (task: Task) => {
-    if (!task.deadline) return true; // No deadline means always allowed
+    if (!task.deadline) return true;
     return new Date(task.deadline) >= new Date();
   };
 
@@ -238,14 +279,9 @@ const fetchTasks = async () => {
     setFeedbackDialogOpen(true);
   };
 
-  useEffect(() => {
-    fetchTasks();
-    fetchSubmissions();
-  }, []);
-
   if (loading) {
     return (
-      <Card className="w-full max-w-6xl mx-auto">
+      <Card className="w-full max-w-6xl mx-auto mt-4 md:mt-0">
         <CardHeader>
           <CardTitle className="text-xl sm:text-2xl">My Tasks</CardTitle>
         </CardHeader>
@@ -257,7 +293,7 @@ const fetchTasks = async () => {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4">
+    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4 mt-4 md:mt-0">
       <Card>
         <CardHeader>
           <CardTitle className="text-xl sm:text-2xl">My Tasks</CardTitle>
@@ -267,7 +303,7 @@ const fetchTasks = async () => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            {tasks.map((task) => {
+            {filteredTasks.map((task) => {
               const submissionStatus = getSubmissionStatus(task._id);
               const submission = getSubmission(task._id);
               const overdue = task.isOverdue || false;
@@ -302,8 +338,7 @@ const fetchTasks = async () => {
                             >
                               <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                               <span className="whitespace-nowrap">
-                                Due:{" "}
-                                {new Date(task.deadline).toLocaleDateString()}
+                                Due: {new Date(task.deadline).toLocaleDateString()}
                                 {overdue && " (Overdue)"}
                               </span>
                             </div>
@@ -314,7 +349,6 @@ const fetchTasks = async () => {
                             {task.description}
                           </p>
                         )}
-
                         {feedbackText && (
                           <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
                             <h4 className="font-medium text-xs sm:text-sm text-blue-900">
@@ -392,8 +426,7 @@ const fetchTasks = async () => {
                                     />
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1">
-                                    Supported: Images, Audio, PDF, Word
-                                    documents
+                                    Supported: Images, Audio, PDF, Word documents
                                   </p>
                                   {isUploading && (
                                     <div className="flex items-center mt-2">
@@ -404,7 +437,6 @@ const fetchTasks = async () => {
                                     </div>
                                   )}
                                 </div>
-
                                 {uploadedFiles.length > 0 && (
                                   <div>
                                     <Label className="text-xs sm:text-sm font-medium">
@@ -505,6 +537,45 @@ const fetchTasks = async () => {
               </div>
             )}
           </div>
+
+          {/* Pagination */}
+          {pageNumbers.length > 1 && (
+            <div className="flex justify-center mt-6">
+              <nav className="flex items-center space-x-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                {pageNumbers.map((number) => (
+                  <Button
+                    key={number}
+                    variant={currentPage === number ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => paginate(number)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {number}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(Math.min(pageNumbers.length, currentPage + 1))}
+                  disabled={currentPage === pageNumbers.length}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
+            </div>
+          )}
         </CardContent>
       </Card>
 

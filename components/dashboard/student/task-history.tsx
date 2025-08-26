@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Clock, Eye } from "lucide-react";
+import { Calendar, FileText, Clock, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import {
   Dialog,
@@ -60,13 +60,13 @@ interface TaskHistoryProps {
 export default function TaskHistory({ token }: TaskHistoryProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [submissionsPerPage] = useState(5);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState("");
 
-  // In your TaskHistory component
   const fetchSubmissions = async (page = 1) => {
     try {
       const response = await fetch(
@@ -80,14 +80,28 @@ export default function TaskHistory({ token }: TaskHistoryProps) {
       if (response.ok) {
         const data = await response.json();
         setSubmissions(data.submissions || []);
-        setTotalPages(data.totalPages || 1);
       }
     } catch (error) {
       console.error("Error fetching submission history:", error);
+      setSubmissions([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Pagination logic
+  useEffect(() => {
+    const indexOfLastSubmission = currentPage * submissionsPerPage;
+    const indexOfFirstSubmission = indexOfLastSubmission - submissionsPerPage;
+    setFilteredSubmissions(submissions.slice(indexOfFirstSubmission, indexOfLastSubmission));
+  }, [submissions, currentPage, submissionsPerPage]);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  const pageNumbers = [];
+  for (let i = 1; i <= Math.ceil(submissions.length / submissionsPerPage); i++) {
+    pageNumbers.push(i);
+  }
 
   const getSubmissionBadgeColor = (status: SubmissionStatus) => {
     switch (status) {
@@ -107,111 +121,13 @@ export default function TaskHistory({ token }: TaskHistoryProps) {
     setFeedbackDialogOpen(true);
   };
 
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const pages = [];
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-    if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(
-        <Button
-          key={i}
-          variant={currentPage === i ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            setCurrentPage(i);
-            fetchSubmissions(i);
-          }}
-          className="h-8 w-8 p-0"
-        >
-          {i}
-        </Button>
-      );
-    }
-
-    return (
-      <div className="flex justify-center items-center space-x-2 mt-6">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (currentPage > 1) {
-              setCurrentPage(currentPage - 1);
-              fetchSubmissions(currentPage - 1);
-            }
-          }}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </Button>
-
-        {startPage > 1 && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCurrentPage(1);
-                fetchSubmissions(1);
-              }}
-              className="h-8 w-8 p-0"
-            >
-              1
-            </Button>
-            {startPage > 2 && <span className="px-2">...</span>}
-          </>
-        )}
-
-        {pages}
-
-        {endPage < totalPages && (
-          <>
-            {endPage < totalPages - 1 && <span className="px-2">...</span>}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCurrentPage(totalPages);
-                fetchSubmissions(totalPages);
-              }}
-              className="h-8 w-8 p-0"
-            >
-              {totalPages}
-            </Button>
-          </>
-        )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (currentPage < totalPages) {
-              setCurrentPage(currentPage + 1);
-              fetchSubmissions(currentPage + 1);
-            }
-          }}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </Button>
-      </div>
-    );
-  };
-
   useEffect(() => {
     fetchSubmissions(currentPage);
   }, []);
 
   if (loading) {
     return (
-      <Card className="w-full max-w-6xl mx-auto">
+      <Card className="w-full max-w-6xl mx-auto mt-4 md:mt-0">
         <CardHeader>
           <CardTitle className="text-xl sm:text-2xl">Task History</CardTitle>
         </CardHeader>
@@ -223,7 +139,7 @@ export default function TaskHistory({ token }: TaskHistoryProps) {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4">
+    <div className="space-y-6 w-full max-w-6xl mx-auto px-2 sm:px-4 mt-4 md:mt-0">
       <Card>
         <CardHeader>
           <CardTitle className="text-xl sm:text-2xl">Task History</CardTitle>
@@ -233,7 +149,7 @@ export default function TaskHistory({ token }: TaskHistoryProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            {submissions.map((submission) => {
+            {filteredSubmissions.map((submission) => {
               const task = submission.task;
               if (!task) return null;
 
@@ -362,7 +278,44 @@ export default function TaskHistory({ token }: TaskHistoryProps) {
             )}
           </div>
 
-          {renderPagination()}
+          {/* Pagination */}
+          {pageNumbers.length > 1 && (
+            <div className="flex justify-center mt-6">
+              <nav className="flex items-center space-x-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {pageNumbers.map((number) => (
+                  <Button
+                    key={number}
+                    variant={currentPage === number ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => paginate(number)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {number}
+                  </Button>
+                ))}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(Math.min(pageNumbers.length, currentPage + 1))}
+                  disabled={currentPage === pageNumbers.length}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
+            </div>
+          )}
         </CardContent>
       </Card>
 
