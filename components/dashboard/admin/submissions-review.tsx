@@ -85,7 +85,9 @@ interface SubmissionsProps {
 
 export default function Submissions({ token }: SubmissionsProps) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [filteredSubmissions, setFilteredSubmissions] = useState<Submission[]>([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState<Submission[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [submissionsPerPage] = useState(5);
@@ -117,13 +119,19 @@ export default function Submissions({ token }: SubmissionsProps) {
   useEffect(() => {
     const indexOfLastSubmission = currentPage * submissionsPerPage;
     const indexOfFirstSubmission = indexOfLastSubmission - submissionsPerPage;
-    setFilteredSubmissions(submissions.slice(indexOfFirstSubmission, indexOfLastSubmission));
+    setFilteredSubmissions(
+      submissions.slice(indexOfFirstSubmission, indexOfLastSubmission)
+    );
   }, [submissions, currentPage, submissionsPerPage]);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const pageNumbers = [];
-  for (let i = 1; i <= Math.ceil(submissions.length / submissionsPerPage); i++) {
+  for (
+    let i = 1;
+    i <= Math.ceil(submissions.length / submissionsPerPage);
+    i++
+  ) {
     pageNumbers.push(i);
   }
 
@@ -133,17 +141,21 @@ export default function Submissions({ token }: SubmissionsProps) {
     setIsProcessing(true);
 
     try {
-      const response = await fetch(`/api/submissions/${selectedSubmission._id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status,
-          feedback: feedbackText ? { text: feedbackText } : undefined,
-        }),
-      });
+      // Change PUT to PATCH
+      const response = await fetch(
+        `/api/submissions/${selectedSubmission._id}`,
+        {
+          method: "PATCH", // ← Changed from PUT to PATCH
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status,
+            feedbackText, // Also note: your backend expects feedbackText, not feedback object
+          }),
+        }
+      );
 
       if (response.ok) {
         setSelectedSubmission(null);
@@ -258,7 +270,9 @@ export default function Submissions({ token }: SubmissionsProps) {
                           </p>
                           <p className="text-xs sm:text-sm text-gray-500 mt-1">
                             Submitted on:{" "}
-                            {new Date(submission.createdAt).toLocaleDateString()}
+                            {new Date(
+                              submission.createdAt
+                            ).toLocaleDateString()}
                           </p>
                         </div>
                         {task.description && (
@@ -350,7 +364,8 @@ export default function Submissions({ token }: SubmissionsProps) {
                                     Task: {task.title}
                                   </h4>
                                   <p className="text-xs sm:text-sm text-gray-600">
-                                    Submitted by: {student.name} ({student.email})
+                                    Submitted by: {student.name} (
+                                    {student.email})
                                   </p>
                                 </div>
 
@@ -376,31 +391,32 @@ export default function Submissions({ token }: SubmissionsProps) {
                                   </div>
                                 )}
 
-                                {submission.files && submission.files.length > 0 && (
-                                  <div>
-                                    <h4 className="font-medium text-xs sm:text-sm">
-                                      Submitted Files:
-                                    </h4>
-                                    <div className="space-y-2 mt-2">
-                                      {submission.files.map((file, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center bg-gray-50 p-2 rounded"
-                                        >
-                                          <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
-                                          <a
-                                            href={file.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs sm:text-sm text-blue-600 underline whitespace-nowrap truncate"
+                                {submission.files &&
+                                  submission.files.length > 0 && (
+                                    <div>
+                                      <h4 className="font-medium text-xs sm:text-sm">
+                                        Submitted Files:
+                                      </h4>
+                                      <div className="space-y-2 mt-2">
+                                        {submission.files.map((file, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex items-center bg-gray-50 p-2 rounded"
                                           >
-                                            {file.originalName}
-                                          </a>
-                                        </div>
-                                      ))}
+                                            <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                                            <a
+                                              href={file.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-xs sm:text-sm text-blue-600 underline whitespace-nowrap truncate"
+                                            >
+                                              {file.originalName}
+                                            </a>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
 
                                 <div>
                                   <h4 className="font-medium text-xs sm:text-sm mb-2">
@@ -420,7 +436,9 @@ export default function Submissions({ token }: SubmissionsProps) {
                               <div className="pt-4 border-t flex-shrink-0 flex justify-between">
                                 <Button
                                   variant="destructive"
-                                  onClick={() => handleApproveReject("rejected")}
+                                  onClick={() =>
+                                    handleApproveReject("rejected")
+                                  }
                                   disabled={isProcessing}
                                   className="text-xs sm:text-sm"
                                   size="sm"
@@ -435,7 +453,9 @@ export default function Submissions({ token }: SubmissionsProps) {
                                   )}
                                 </Button>
                                 <Button
-                                  onClick={() => handleApproveReject("approved")}
+                                  onClick={() =>
+                                    handleApproveReject("approved")
+                                  }
                                   disabled={isProcessing}
                                   className="text-xs sm:text-sm"
                                   size="sm"
@@ -490,7 +510,7 @@ export default function Submissions({ token }: SubmissionsProps) {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                
+
                 {pageNumbers.map((number) => (
                   <Button
                     key={number}
@@ -502,11 +522,13 @@ export default function Submissions({ token }: SubmissionsProps) {
                     {number}
                   </Button>
                 ))}
-                
+
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => paginate(Math.min(pageNumbers.length, currentPage + 1))}
+                  onClick={() =>
+                    paginate(Math.min(pageNumbers.length, currentPage + 1))
+                  }
                   disabled={currentPage === pageNumbers.length}
                   className="h-8 w-8 p-0"
                 >

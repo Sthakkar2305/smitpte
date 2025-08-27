@@ -86,7 +86,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     return [];
   };
 
-  // Fetch stats
+  // Fetch stats - FIXED: Use the API data directly
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/dashboard/stats', {
@@ -119,7 +119,7 @@ export default function ProgressReport({ token }: ProgressReportProps) {
       if (response.ok) {
         const data = await response.json();
         // Ensure we always have an array
-        setSubmissions(ensureArray<Submission>(data));
+        setSubmissions(ensureArray<Submission>(data.submissions || data));
       } else {
         console.error('Failed to fetch submissions:', response.status);
         setSubmissions(MOCK_SUBMISSIONS);
@@ -156,109 +156,50 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     }
   };
 
-  // Check if task has a submission
-  const hasSubmission = (taskId: string): boolean => {
-    return submissions.some(submission => submission.task?._id === taskId);
-  };
-
-  // Calculate stats including overdue tasks
+  // FIXED: Use the stats from API directly instead of recalculating
   const calculateEnhancedStats = (): Stats => {
-    // Ensure we have arrays to work with
+    if (stats) {
+      // Use the stats from the API which are already correct
+      return {
+        assignedTasks: stats.assignedTasks || 0,
+        completedTasks: stats.completedTasks || 0,
+        pendingTasks: stats.pendingTasks || 0,
+        rejectedTasks: stats.rejectedTasks || 0,
+        overdueTasks: 0 // You can calculate this separately if needed
+      };
+    }
+    
+    // Fallback calculation if API fails
     const safeSubmissions = Array.isArray(submissions) ? submissions : [];
     const safeTasks = Array.isArray(tasks) ? tasks : [];
-
-    // First count all the submissions by status
-    const baseStats = {
+    
+    return {
       assignedTasks: safeTasks.length,
       completedTasks: safeSubmissions.filter(s => s.status === 'approved').length,
       pendingTasks: safeSubmissions.filter(s => s.status === 'pending').length,
       rejectedTasks: safeSubmissions.filter(s => s.status === 'rejected').length,
       overdueTasks: 0
     };
-
-    // Count overdue tasks (tasks with deadline passed and no submission OR pending submission after deadline)
-    const overdueCount = safeTasks.filter(task => {
-      if (!task.deadline) return false;
-      
-      const isOverdue = new Date(task.deadline) < new Date();
-      if (!isOverdue) return false;
-      
-      // Check if this task has any submission
-      const taskSubmission = safeSubmissions.find(submission => submission.task?._id === task._id);
-      
-      // Task is overdue if:
-      // 1. No submission at all, OR
-      // 2. Has a pending submission that was submitted after the deadline
-      if (!taskSubmission) return true;
-      
-      if (taskSubmission.status === 'pending') {
-        const submittedDate = new Date(taskSubmission.submittedAt);
-        const deadlineDate = new Date(task.deadline);
-        return submittedDate > deadlineDate;
-      }
-      
-      return false;
-    }).length;
-
-    return {
-      ...baseStats,
-      overdueTasks: overdueCount,
-      rejectedTasks: baseStats.rejectedTasks // Don't automatically add overdue to rejected
-    };
   };
 
-  // Calculate stats by task type including overdue tasks
+  // Calculate stats by task type - FIXED: Use submissions data only
   const getTaskTypeStats = () => {
-    // Ensure we have arrays to work with
     const safeSubmissions = Array.isArray(submissions) ? submissions : [];
-    const safeTasks = Array.isArray(tasks) ? tasks : [];
     
     const taskTypes: Record<string, { approved: number; pending: number; rejected: number; overdue: number }> = {};
     
-    // Process submissions
+    // Process submissions only
     safeSubmissions.forEach((submission) => {
       const type = submission.task?.type || 'Unknown';
       if (!taskTypes[type]) {
         taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
       }
-      if (
-        submission.status === 'approved' ||
-        submission.status === 'pending' ||
-        submission.status === 'rejected'
-      ) {
-        taskTypes[type][submission.status]++;
-      }
-    });
-
-    // Process overdue tasks (no submission or pending submission after deadline)
-    safeTasks.forEach(task => {
-      if (!task.deadline) return;
-      
-      const isOverdue = new Date(task.deadline) < new Date();
-      if (!isOverdue) return;
-      
-      const taskSubmission = safeSubmissions.find(submission => submission.task?._id === task._id);
-      const type = task.type || 'Unknown';
-      
-      if (!taskTypes[type]) {
-        taskTypes[type] = { approved: 0, pending: 0, rejected: 0, overdue: 0 };
-      }
-      
-      // Task is overdue if:
-      // 1. No submission at all, OR
-      // 2. Has a pending submission that was submitted after the deadline
-      let isTaskOverdue = false;
-      
-      if (!taskSubmission) {
-        isTaskOverdue = true;
-      } else if (taskSubmission.status === 'pending') {
-        const submittedDate = new Date(taskSubmission.submittedAt);
-        const deadlineDate = new Date(task.deadline);
-        isTaskOverdue = submittedDate > deadlineDate;
-      }
-      
-      if (isTaskOverdue) {
-        taskTypes[type].overdue++;
+      if (submission.status === 'approved') {
+        taskTypes[type].approved++;
+      } else if (submission.status === 'pending') {
+        taskTypes[type].pending++;
+      } else if (submission.status === 'rejected') {
+        taskTypes[type].rejected++;
       }
     });
 
@@ -272,9 +213,8 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     }));
   };
 
-  // Weekly progress
+  // Weekly progress - unchanged
   const getWeeklyProgress = () => {
-    // Ensure we have arrays to work with
     const safeSubmissions = Array.isArray(submissions) ? submissions : [];
     
     const weeks: Record<string, { submitted: number; approved: number }> = {};
@@ -310,14 +250,14 @@ export default function ProgressReport({ token }: ProgressReportProps) {
     }));
   };
 
-  // Overall progress
+  // Overall progress - FIXED: Use API stats
   const getOverallProgress = () => {
     const enhancedStats = calculateEnhancedStats();
-    const total = enhancedStats.completedTasks + enhancedStats.pendingTasks + enhancedStats.rejectedTasks + enhancedStats.overdueTasks;
+    const total = enhancedStats.completedTasks + enhancedStats.pendingTasks + enhancedStats.rejectedTasks;
     return total > 0 ? Math.round((enhancedStats.completedTasks / total) * 100) : 0;
   };
 
-  // Pie chart data
+  // Pie chart data - FIXED: Use API stats
   const getPieChartData = () => {
     const enhancedStats = calculateEnhancedStats();
     return [
