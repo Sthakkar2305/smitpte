@@ -26,17 +26,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { title, type, description, quantity, deadline, assignedTo, assignToAll } = await request.json();
 
+    console.log('Creating task with data:', {
+      title, type, description, quantity, deadline, assignedTo, assignToAll
+    });
+
     if (!title || !type) {
       return NextResponse.json({ message: 'Title and type are required' }, { status: 400 });
     }
 
     let finalAssignedTo: string[] = [];
-    if (assignToAll) {
-      finalAssignedTo = [];
-    } else if (assignedTo && assignedTo.length > 0) {
+    if (!assignToAll && assignedTo && assignedTo.length > 0) {
       finalAssignedTo = assignedTo;
-    } else {
-      finalAssignedTo = [];
     }
 
     const newTask = new Task({
@@ -47,19 +47,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       deadline: deadline ? new Date(deadline) : null,
       assignedTo: finalAssignedTo,
       createdBy: (decoded as DecodedToken).userId,
+      assignToAll: assignToAll || false,
     });
 
-    await newTask.save();
-    await newTask.populate('createdBy', 'name');
+    const savedTask = await newTask.save();
+    
+    // Corrected populate call
+    const populatedTask = await savedTask.populate([
+      { path: 'createdBy', select: 'name' },
+      { path: 'assignedTo', select: 'name email' }
+    ]);
 
-    return NextResponse.json(newTask, { status: 201 });
+    return NextResponse.json(populatedTask, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create task error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Internal server error', error: error.message }, 
+      { status: 500 }
+    );
   }
 }
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     await connectDB();
@@ -76,18 +84,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     let tasks;
     if ((decoded as DecodedToken).role === 'admin') {
-      // Admins can see all active tasks
       tasks = await Task.find({ isActive: true })
         .populate('assignedTo', 'name email')
         .populate('createdBy', 'name')
         .sort({ createdAt: -1 });
     } else {
-      // Students can only see tasks assigned to them
       tasks = await Task.find({
         isActive: true,
         $or: [
           { assignedTo: { $in: [(decoded as DecodedToken).userId] } },
-          { assignedTo: { $size: 0 } } // Tasks assigned to all students
+          { assignedTo: { $size: 0 } }
         ]
       })
         .populate('assignedTo', 'name email')
@@ -95,7 +101,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .sort({ createdAt: -1 });
     }
 
-    // Add isOverdue status to each task
     const tasksWithStatus = tasks.map(task => ({
       ...task.toObject(),
       isOverdue: task.deadline ? new Date(task.deadline) < new Date() : false

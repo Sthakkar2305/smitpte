@@ -9,13 +9,19 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
+      "speaking",
+      "writing", 
+      "reading",
+      "listening",
+      "section_test",
+      "mock_test",
       "Personal Introduction",
       "Read Aloud",
       "Repeat Sentence",
       "Describe Image",
       "Retell Lecture",
-      "summarize groud desicusion",
-      "response to situation",
+      "Summarize Group Discussion",
+      "Respond to Situation",
       "Answer Short Question",
       "Summarize Written Text",
       "Essay",
@@ -32,13 +38,13 @@ const taskSchema = new mongoose.Schema({
       "Select Missing Word",
       "Highlight Incorrect Words",
       "Write from Dictation",
-      "section test",
-      "full mock test",
+      "Section Test", // ⚠️ Add this
+      "Full Mock Test", // ⚠️ Add this
     ],
   },
   description: {
     type: String,
-    required: true,
+    default: "",
   },
   quantity: {
     type: Number,
@@ -53,6 +59,10 @@ const taskSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  assignToAll: {
+    type: Boolean,
+    default: false,
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
